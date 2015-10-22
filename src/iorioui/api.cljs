@@ -30,6 +30,10 @@
     (js/alert (str "Error loading " name))
     (.warn js/console "got status" status (str body))))
 
+(defn on-create-error [name]
+  (fn  [{:keys [status body]}]
+    (js/alert (str "Error creating " name))
+    (.warn js/console "got status" status (str body))))
 
 (defn with-status [expected-status on-status other-status]
   (fn [event {:keys [status] :as response}]
@@ -41,6 +45,10 @@
 (defn http-get [path token]
   (http/get path {:headers {"x-session" token
                             "accepts" "application/json"}}))
+
+(defn http-post [path token body]
+  (http/post path {:json-params body
+                   :headers {"x-session" token}}))
 
 (defn load-users [token]
   (bus/dispatch-req :users-response (http-get "/admin/users" token)))
@@ -61,8 +69,11 @@
                     (http-get "/admin/permissions" token)))
 
 (defn create-user [token user]
-  (prn "create user" token user)
-  (bus/dispatch :user-created {:data user :response nil}))
+  (bus/dispatch-req :user-create-response
+                    (http-post "/admin/users" token user)))
+
+(defn on-user-create-response [response]
+  (bus/dispatch :user-created {:response response}))
 
 (defn subscribe-all []
   (bus/subscribe :users-response (with-status 200 on-users-response
@@ -70,6 +81,10 @@
 
   (bus/subscribe :user-response (with-status 200 on-user-response
                                   (on-other-status "user")))
+
+  (bus/subscribe :user-create-response (with-status 201
+                                         on-user-create-response
+                                         (on-create-error "user")))
 
   (bus/subscribe :group-response (with-status 200 on-group-response
                                    (on-other-status "group")))

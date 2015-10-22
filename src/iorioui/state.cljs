@@ -1,7 +1,7 @@
 (ns iorioui.state
   (:require [om.next :as om]))
 
-(def clean-create-user {:username "" :groups #{"g-authenticated"}})
+(def clean-create-user {:username "" :password "" :groups #{"g-authenticated"}})
 
 (defonce app-state
   (atom
@@ -55,6 +55,9 @@
 (defmethod read :create-user-username [{:keys [state] :as env} _ _]
   (read-in state [:ui :create-user :username]))
 
+(defmethod read :create-user-password [{:keys [state] :as env} _ _]
+  (read-in state [:ui :create-user :password]))
+
 (defmethod read :create-user-groups [{:keys [state] :as env} _ _]
   (read-in state [:ui :create-user :groups]))
 
@@ -74,6 +77,11 @@
   [{:keys [state]} _ {:keys [value]}]
   {:value [:create-user-username]
    :action #(set-in state [:ui :create-user :username] value)})
+
+(defmethod mutate 'ui.user.create/set-password
+  [{:keys [state]} _ {:keys [value]}]
+  {:value [:create-user-password]
+   :action #(set-in state [:ui :create-user :password] value)})
 
 (defmethod mutate 'ui.user.create/reset
   [{:keys [state]} _ {:keys [value]}]

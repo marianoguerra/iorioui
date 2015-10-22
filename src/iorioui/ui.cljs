@@ -40,12 +40,16 @@
 (defn perm-links [app perms]
   (dom/div nil (map (fn [perm] (dom/div nil (perm-link app perm) " ")) perms)))
 
-(defn create-user-form [{:keys [username groups] :as user} groups-list]
+(defn create-user-form [{:keys [username password groups] :as user} groups-list]
   (bs/form
     (bs/form-input :id "user-username" :label "Username"
                    :value username
                    :on-change #(bus/dispatch
                                  :create-user-edit-username %))
+    (bs/form-input :id "user-password" :label "Password" :input-type "password"
+                   :value password
+                   :on-change #(bus/dispatch
+                                 :create-user-edit-password %))
     (map (fn [{group-name :name}]
            (bs/form-check :label group-name
                           :value (contains? groups group-name)
@@ -206,6 +210,7 @@
                                 (api/create-user (get-token) user)))
 
   (bus/subscribe :user-created (fn [_ user]
+                                 (api/load-users (get-token))
                                  (st/mutate! `[(ui.user.create/reset) :ui])))
 
   (bus/subscribe :api-loading-change
@@ -214,6 +219,10 @@
   (bus/subscribe :create-user-edit-username
                  #(st/mutate! `[(ui.user.create/set-username
                                   {:value ~%2}) :create-user-username]))
+
+  (bus/subscribe :create-user-edit-password
+                 #(st/mutate! `[(ui.user.create/set-password
+                                  {:value ~%2}) :create-user-password]))
   (bus/subscribe :create-user-edit-group
                  #(st/mutate! `[(ui.user.create/set-group ~%2) :ui]))
   (bus/subscribe :new-user
