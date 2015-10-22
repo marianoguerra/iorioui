@@ -12,7 +12,7 @@ For interactive development::
 
 Production build::
 
-    lein cljsbuild once dev
+    lein cljsbuild once prod
 
 License
 -------
