@@ -184,7 +184,7 @@
       :group (api/load-group token param1)
       (.warn js/console "invalid view" (name view)))))
 
-(defn subscribe-all [state]
+(defn subscribe-all []
   (bus/start-dispatch-handler)
   (api/subscribe-all)
 
@@ -232,4 +232,4 @@
 (om/add-root! st/reconciler
   App (gdom/getElement "main-app-area"))
 
-(subscribe-all st/app-state)
+(subscribe-all)
