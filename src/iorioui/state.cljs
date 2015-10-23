@@ -4,11 +4,14 @@
 (def clean-create-user {:username "" :password "" :groups #{"g-authenticated"}})
 (def clean-create-group {:groupname "" :groups #{}})
 
+(def config (js->clj (or (.. js/window -_ioriouicfg) #js {})))
+(def api-base (or (get config "apibase") "/admin"))
+
 (defonce app-state
   (atom
     {:ui {:nav-selected :users
           :title "Users"
-          :brand-title "IorioDB"
+          :brand-title (or (get config "title") "Admin")
           :loading false
           :create-user clean-create-user
           :create-group clean-create-group

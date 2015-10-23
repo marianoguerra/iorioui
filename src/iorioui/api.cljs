@@ -42,39 +42,37 @@
       (on-status response)
       (when other-status (other-status response)))))
 
-(defn http-get [path token]
-  (http/get path {:headers {"x-session" token
-                            "accepts" "application/json"}}))
+(defn api-path [parts]
+  (clojure.string/join "/" (concat [iorioui.state/api-base] (map name parts))))
 
-(defn http-post [path token body]
-  (http/post path {:json-params body
-                   :headers {"x-session" token}}))
+(defn http-get [path-parts token]
+  (http/get (api-path path-parts)
+            {:headers {"x-session" token "accepts" "application/json"}}))
+
+(defn http-post [path-parts token body]
+  (http/post (api-path path-parts)
+             {:json-params body :headers {"x-session" token}}))
 
 (defn load-users [token]
-  (bus/dispatch-req :users-response (http-get "/admin/users" token)))
+  (bus/dispatch-req :users-response (http-get [:users] token)))
 
 (defn load-user [token username]
-  (bus/dispatch-req :user-response
-                    (http-get (str "/admin/user/" username) token)))
+  (bus/dispatch-req :user-response (http-get [:user username] token)))
 
 (defn load-group [token group]
-  (bus/dispatch-req :group-response
-                    (http-get (str "/admin/group/" group) token)))
+  (bus/dispatch-req :group-response (http-get [:group group] token)))
 
 (defn load-groups [token]
-  (bus/dispatch-req :groups-response (http-get "/admin/groups" token)))
+  (bus/dispatch-req :groups-response (http-get [:groups] token)))
 
 (defn load-permissions [token]
-  (bus/dispatch-req :permissions-response
-                    (http-get "/admin/permissions" token)))
+  (bus/dispatch-req :permissions-response (http-get [:permissions] token)))
 
 (defn create-user [token user]
-  (bus/dispatch-req :user-create-response
-                    (http-post "/admin/users" token user)))
+  (bus/dispatch-req :user-create-response (http-post [:users] token user)))
 
 (defn create-group [token group]
-  (bus/dispatch-req :group-create-response
-                    (http-post "/admin/groups" token group)))
+  (bus/dispatch-req :group-create-response (http-post [:groups] token group)))
 
 (defn on-user-create-response [response]
   (bus/dispatch :user-created {:response response}))
