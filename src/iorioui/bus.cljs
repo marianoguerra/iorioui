@@ -35,7 +35,5 @@
 
 (defn dispatch-req [event-key req]
   (go (let [response (<! req)]
-        (if (= response ::exit)
-          (prn "stoping dispatcher")
-          (dispatch event-key response)))))
+        (dispatch event-key response))))
 
