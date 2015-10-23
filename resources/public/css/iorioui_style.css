@@ -84,3 +84,9 @@ body {
 .main .page-header {
   margin-top: 0;
 }
+
+.buttons{
+ width: 100%;
+ margin: 1em;
+ text-align: center;
+}

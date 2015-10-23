@@ -33,6 +33,7 @@
 (defn on-loading-error [name] (on-action-error "loading" name))
 (defn on-create-error [name] (on-action-error "creating" name))
 (defn on-update-error [name] (on-action-error "updating" name))
+(defn on-delete-error [name] (on-action-error "removing" name))
 
 (defn with-status [expected-status on-status other-status]
   (fn [event {:keys [status] :as response}]
@@ -47,6 +48,10 @@
 (defn http-get [path-parts token]
   (http/get (api-path path-parts)
             {:headers {"x-session" token "accepts" "application/json"}}))
+
+(defn http-delete [path-parts token]
+  (http/delete (api-path path-parts)
+               {:headers {"x-session" token "accepts" "application/json"}}))
 
 (defn http-post [path-parts token body]
   (http/post (api-path path-parts)
@@ -78,6 +83,10 @@
   (bus/dispatch-req :user-update-response
                     (http-put [:users username] token user)))
 
+(defn delete-user [token {:keys [username] :as user}]
+  (bus/dispatch-req :user-delete-response
+                    (http-delete [:users username] token)))
+
 (defn create-group [token group]
   (bus/dispatch-req :group-create-response (http-post [:groups] token group)))
 
@@ -98,6 +107,10 @@
   (bus/subscribe :user-update-response (with-status 200
                                          (dispatch-response :user-updated)
                                          (on-update-error "user")))
+
+  (bus/subscribe :user-delete-response (with-status 200
+                                         (dispatch-response :user-deleted)
+                                         (on-delete-error "user")))
 
   (bus/subscribe :group-create-response (with-status 201
                                           (dispatch-response :group-created)

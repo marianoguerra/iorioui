@@ -74,12 +74,15 @@
 (defn on-click-cb [callback]
   (when callback (fn [e] (callback))))
 
-(defn form-input [& {:keys [id label input-type placeholder on-change value]}]
+(defn form-input [& {:keys [id label input-type placeholder on-change value
+                            readonly]}]
     (dom/div #js {:className "form-group"}
              (dom/label #js {:htmlFor id} label)
              (dom/input #js {:type input-type :className "form-control"
                              :id id :placeholder placeholder :value value
-                             :onChange (on-change-cb on-change)})))
+                             :readOnly readonly
+                             :onChange (when-not readonly
+                                         (on-change-cb on-change))})))
 
 (defn form-check [& {:keys [label value on-change]}]
   (dom/div #js {:className "checkbox"}

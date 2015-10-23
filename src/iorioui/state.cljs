@@ -60,10 +60,12 @@
       {:value :not-found})))
 
 (defmethod read :edit-user [{:keys [state]} _ _]
-  (let [st @state]
+  (let [{:keys [groups-list user-details ui]} @state
+        edit-user (:edit-user ui)]
     {:value
-     {:edit-user (get-in st [:ui :edit-user])
-      :groups-list (:groups-list st)}}))
+     {:edit-user edit-user
+      :groups-list groups-list
+      :user-details user-details}}))
 
 (defmethod read :edit-group [{:keys [state]} _ _]
   (let [st @state]
@@ -75,9 +77,6 @@
   (let [{:keys [nav-items nav-selected title loading brand-title]} (:ui @state)]
     {:value {:nav-items nav-items :nav-selected nav-selected
              :title title :loading loading :brand-title brand-title}}))
-
-(defmethod read :user-details [{:keys [state]} _ _]
-  {:value (select-keys @state [:user-details :groups-list])})
 
 (defn set-group [state path name value]
   (if value
