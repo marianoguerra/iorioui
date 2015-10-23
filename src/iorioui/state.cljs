@@ -76,6 +76,9 @@
     {:value {:nav-items nav-items :nav-selected nav-selected
              :title title :loading loading :brand-title brand-title}}))
 
+(defmethod read :user-details [{:keys [state]} _ _]
+  {:value (select-keys @state [:user-details :groups-list])})
+
 (defn set-group [state path name value]
   (if value
     (conj-in state path name)

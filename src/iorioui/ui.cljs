@@ -78,6 +78,41 @@
 
 (def edit-user-ui (om/factory EditUser))
 
+(defn grants-details [grants-list]
+  (dom/div #js {:className "grants-details"}
+           (bs/table ["Bucket" "Key" "Grants" "Bucket Grant" "Any Grant"]
+           (map (fn [{:keys [grants bucket key bucket_grant any]}]
+                  {:key (str bucket "." key)
+                   :cols [bucket key (clojure.string/join ", " grants)
+                                    (str bucket_grant) (str any)]})
+                grants-list))))
+
+(defn user-ui [{:keys [username groups grants] :as user-details} groups-list]
+  (dom/div #js {:className "user-details"}
+           (bs/table ["", ""]
+                     [{:key "username" :cols ["Username" username]}
+                      {:key "groups" :cols ["Groups" (group-links groups)]}])
+
+           (dom/h3 nil "Grants")
+           (grants-details grants)
+
+           (edit-user-ui {:edit-user user-details
+                          :opts {:title "Edit User"
+                                 :action-label "Update"
+                                 :action-type :update-user}
+                          :groups-list groups-list})))
+
+(defui UserDetails
+  static om/IQuery
+  (query [this] '[(:user-details)])
+  Object
+  (render [this]
+          (let [{:keys [user-details groups-list] :as data} (om/props this)]
+            (user-ui user-details groups-list))))
+
+(def user-details (om/factory UserDetails))
+
+
 (defn edit-group-form [{:keys [groupname groups] :as group} groups-list]
   (bs/form
     (bs/form-input :id "group-groupname" :label "Name" :value groupname
@@ -117,29 +152,6 @@
                               :action-label "Create"
                               :action-type :create-user}))))
 
-(defn grants-details [grants-list]
-  (dom/div #js {:className "grants-details"}
-           (bs/table ["Bucket" "Key" "Grants" "Bucket Grant" "Any Grant"]
-           (map (fn [{:keys [grants bucket key bucket_grant any]}]
-                  {:key (str bucket "." key)
-                   :cols [bucket key (clojure.string/join ", " grants)
-                                    (str bucket_grant) (str any)]})
-                grants-list))))
-
-(defn user-ui [{:keys [username groups grants] :as user-details} groups-list]
-  (dom/div #js {:className "user-details"}
-           (bs/table ["", ""]
-                     [{:key "username" :cols ["Username" username]}
-                      {:key "groups" :cols ["Groups" (group-links groups)]}])
-
-           (dom/h3 nil "Grants")
-           (grants-details grants)
-
-           (edit-user-ui {:edit-user user-details
-                            :opts {:title "Edit User" :action-label "Update"
-                                   :action-type :update-user}
-                            :groups-list groups-list})))
-
 (defn groups-ui [items group-data]
   (dv
     (bs/table ["Group", "Groups"]
@@ -167,13 +179,12 @@
                     :cols [name (perm-links name perms)]})
                  items)))
 
-(defn main-panel [nav-selected
-                  {:keys [user-details users-list edit-user
-                          group-details groups-list edit-group
-                          permissions-list]}]
+(defn main-panel [nav-selected {:keys [user-details users-list edit-user
+                                       group-details groups-list edit-group
+                                       permissions-list]}]
   (dv (condp = nav-selected
         :users (users-ui users-list edit-user)
-        :user (user-ui user-details groups-list)
+        :user (user-ui (:user-details user-details) (:groups-list user-details))
         :groups (groups-ui groups-list edit-group)
         :group (group-ui group-details)
         :permissions (perms-ui permissions-list)
@@ -187,12 +198,14 @@
   static om/IQuery
   (query [this]
          (let [edit-user-query (first (om/get-query EditUser))
-               edit-group-query (first (om/get-query CreateGroup))]
+               edit-group-query (first (om/get-query CreateGroup))
+               user-details-query (first (om/get-query UserDetails))]
            `[:ui
              ~edit-user-query
              ~edit-group-query
+             ~user-details-query
              (:nav-info)
-             (:user-details) (:users-list)
+             (:users-list)
              (:group-details) (:groups-list)
              (:permissions-list)]))
   Object
@@ -208,7 +221,6 @@
                          (if loading
                            (loading-sign)
                            (main-panel nav-selected data))))))))
-
 
 (defn navigate [id title]
   (st/mutate!
