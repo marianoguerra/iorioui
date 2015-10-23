@@ -1,8 +1,8 @@
 (ns iorioui.state
   (:require [om.next :as om]))
 
-(def clean-create-user {:username "" :password "" :groups #{"g-authenticated"}})
-(def clean-create-group {:groupname "" :groups #{}})
+(def clean-edit-user {:username "" :password "" :groups #{"g-authenticated"}})
+(def clean-edit-group {:groupname "" :groups #{}})
 
 (def config (js->clj (or (.. js/window -_ioriouicfg) #js {})))
 (def api-base (or (get config "apibase") "/admin"))
@@ -13,8 +13,8 @@
           :title "Users"
           :brand-title (or (get config "title") "Admin")
           :loading false
-          :create-user clean-create-user
-          :create-group clean-create-group
+          :edit-user clean-edit-user
+          :edit-group clean-edit-group
           :nav-items [{:id :users :content "Users"}
                       {:id :groups :content "Groups"}
                       {:id :permissions :content "Permissions"}]}
@@ -59,32 +59,17 @@
       {:value value}
       {:value :not-found})))
 
-(defmethod read :create-user [{:keys [state]} _ _]
+(defmethod read :edit-user [{:keys [state]} _ _]
   (let [st @state]
     {:value
-     {:create-user (get-in st [:ui :create-user])
+     {:edit-user (get-in st [:ui :edit-user])
       :groups-list (:groups-list st)}}))
 
-(defmethod read :create-user-username [{:keys [state]} _ _]
-  (read-in state [:ui :create-user :username]))
-
-(defmethod read :create-user-password [{:keys [state]} _ _]
-  (read-in state [:ui :create-user :password]))
-
-(defmethod read :create-user-groups [{:keys [state]} _ _]
-  (read-in state [:ui :create-user :groups]))
-
-(defmethod read :create-group [{:keys [state]} _ _]
+(defmethod read :edit-group [{:keys [state]} _ _]
   (let [st @state]
     {:value
-     {:create-group (get-in st [:ui :create-group])
+     {:edit-group (get-in st [:ui :edit-group])
       :groups-list (:groups-list st)}}))
-
-(defmethod read :create-group-groupname [{:keys [state]} _ _]
-  (read-in state [:ui :create-group :groupname]))
-
-(defmethod read :create-group-groups [{:keys [state]} _ _]
-  (read-in state [:ui :create-group :groups]))
 
 (defmethod read :nav-info [{:keys [state]} _ _]
   (let [{:keys [nav-items nav-selected title loading brand-title]} (:ui @state)]
@@ -102,38 +87,42 @@
   {:value [:ui]
    :action #(set-in state [:ui :loading] value)})
 
-(defmethod mutate 'ui.user.create/set-username
+(defmethod mutate 'ui.user.edit/set-username
   [{:keys [state]} _ {:keys [value]}]
-  {:value [:create-user-username]
-   :action #(set-in state [:ui :create-user :username] value)})
+  {:value [:edit-user]
+   :action #(set-in state [:ui :edit-user :username] value)})
 
-(defmethod mutate 'ui.user.create/set-password
+(defmethod mutate 'ui.user.edit/set-password
   [{:keys [state]} _ {:keys [value]}]
-  {:value [:create-user-password]
-   :action #(set-in state [:ui :create-user :password] value)})
+  {:value [:edit-user]
+   :action #(set-in state [:ui :edit-user :password] value)})
 
-(defmethod mutate 'ui.user.create/reset [{:keys [state]} _ {:keys [value]}]
-  {:value [:ui] ; TODO
-   :action #(set-in state [:ui :create-user] clean-create-user)})
+(defmethod mutate 'ui.user.edit/reset [{:keys [state]} _ _]
+  {:value [:edit-user]
+   :action #(set-in state [:ui :edit-user] clean-edit-user)})
 
-(defmethod mutate 'ui.user.create/set-group
+(defmethod mutate 'ui.user.edit/set [{:keys [state]} _ {:keys [value]}]
+  {:value [:edit-user]
+   :action #(set-in state [:ui :edit-user] value)})
+
+(defmethod mutate 'ui.user.edit/set-group
   [{:keys [state]} _ {:keys [name value]}]
-  {:value [:create-user-groups]
-   :action #(set-group state [:ui :create-user :groups] name value)})
+  {:value [:edit-user]
+   :action #(set-group state [:ui :edit-user :groups] name value)})
 
-(defmethod mutate 'ui.group.create/set-groupname
+(defmethod mutate 'ui.group.edit/set-groupname
   [{:keys [state]} _ {:keys [value]}]
-  {:value [:create-group-groupname]
-   :action #(set-in state [:ui :create-group :groupname] value)})
+  {:value [:edit-group]
+   :action #(set-in state [:ui :edit-group :groupname] value)})
 
-(defmethod mutate 'ui.group.create/reset [{:keys [state]} _ {:keys [value]}]
-  {:value [:ui] ; TODO
-   :action #(set-in state [:ui :create-group] clean-create-group)})
+(defmethod mutate 'ui.group.edit/reset [{:keys [state]} _ {:keys [value]}]
+  {:value [:edit-group]
+   :action #(set-in state [:ui :edit-group] clean-edit-group)})
 
-(defmethod mutate 'ui.group.create/set-group
+(defmethod mutate 'ui.group.edit/set-group
   [{:keys [state]} _ {:keys [name value]}]
-  {:value [:create-group-groups]
-   :action #(set-group state [:ui :create-group :groups] name value)})
+  {:value [:edit-group]
+   :action #(set-group state [:ui :edit-group :groups] name value)})
 
 (defmethod mutate 'ui.users/set-user-details
   [{:keys [state]} _ {:keys [value]}]

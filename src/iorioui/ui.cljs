@@ -14,7 +14,7 @@
 (enable-console-print!)
 
 (defn dv [& items]
-  (dom/div nil items))
+  (apply dom/div nil items))
 
 (defn nav-mark-selected [items selected]
   (map (fn [{:keys [id content] :as item}]
@@ -38,58 +38,54 @@
          name))
 
 (defn group-links [groups]
-  (dom/div nil (map (fn [group] (dom/div nil (group-link group) " ")) groups)))
+  (dv (map (fn [group] (dv (group-link group) " ")) groups)))
 
 (defn perm-links [app perms]
-  (dom/div nil (map (fn [perm] (dom/div nil (perm-link app perm) " ")) perms)))
+  (dv (map (fn [perm] (dv (perm-link app perm) " ")) perms)))
 
-(defn create-user-form [{:keys [username password groups] :as user} groups-list]
-  (bs/form
-    (bs/form-input :id "user-username" :label "Username"
-                   :value username
-                   :on-change #(bus/dispatch
-                                 :create-user-edit-username %))
-    (bs/form-input :id "user-password" :label "Password" :input-type "password"
-                   :value password
-                   :on-change #(bus/dispatch
-                                 :create-user-edit-password %))
-    (map (fn [{group-name :name}]
-           (bs/form-check :label group-name
-                          :value (contains? groups group-name)
-                          :on-change #(bus/dispatch
-                                        :create-user-edit-group
-                                        {:name group-name :value %})))
-         groups-list)
+(defn edit-user-form [{:keys [username password groups] :as user}
+                      groups-list {:keys [title action-label action-type]}]
+  (dv
+    (dom/h2 nil title)
+    (bs/form
+      (bs/form-input :id "user-username" :label "Username"
+                     :value username
+                     :on-change #(bus/dispatch :edit-user-set-username %))
+      (bs/form-input :id "user-password" :label "Password"
+                     :input-type "password" :value password
+                     :on-change #(bus/dispatch :edit-user-set-password %))
+      (map (fn [{group-name :name}]
+             (bs/form-check :label group-name
+                            :value (contains? groups group-name)
+                            :on-change #(bus/dispatch
+                                          :edit-user-set-group
+                                          {:name group-name :value %})))
+           groups-list)
 
-    (bs/button :level :primary :label "Create"
-               :on-click #(bus/dispatch :create-user user))))
+      (bs/button :level :primary :label action-label
+                 :on-click #(bus/dispatch action-type user)))))
 
-(defui CreateUser
+(defui EditUser
   static om/IQuery
-  (query [this] '[(:create-user)])
+  (query [this] '[(:edit-user)])
   Object
   (render [this]
-          (let [{:keys [create-user groups-list]} (om/props this)]
+          (let [{:keys [edit-user groups-list opts]} (om/props this)]
             (when (nil? groups-list)
-              (bus/dispatch :reload-groups {:source :create-user}))
+              (bus/dispatch :reload-groups {:source :edit-user}))
 
-            (dom/div nil
-                     (dom/h2 nil "Create User")
-                     (create-user-form create-user groups-list)))))
+            (edit-user-form edit-user groups-list opts))))
 
-(def create-user-ui (om/factory CreateUser))
+(def edit-user-ui (om/factory EditUser))
 
-(defn create-group-form [{:keys [groupname groups] :as group} groups-list]
+(defn edit-group-form [{:keys [groupname groups] :as group} groups-list]
   (bs/form
-    (bs/form-input :id "group-groupname" :label "Name"
-                   :value groupname
-                   :on-change #(bus/dispatch
-                                 :create-group-edit-groupname %))
+    (bs/form-input :id "group-groupname" :label "Name" :value groupname
+                   :on-change #(bus/dispatch :edit-group-set-groupname %))
     (map (fn [{group-name :name}]
            (bs/form-check :label group-name
                           :value (contains? groups group-name)
-                          :on-change #(bus/dispatch
-                                        :create-group-edit-group
+                          :on-change #(bus/dispatch :edit-group-set-group
                                         {:name group-name :value %})))
          groups-list)
 
@@ -98,28 +94,28 @@
 
 (defui CreateGroup
   static om/IQuery
-  (query [this] '[(:create-group)])
+  (query [this] '[(:edit-group)])
   Object
   (render [this]
-          (let [{:keys [create-group groups-list]} (om/props this)]
+          (let [{:keys [edit-group groups-list]} (om/props this)]
             (when (nil? groups-list)
-              (bus/dispatch :reload-groups {:source :create-group}))
+              (bus/dispatch :reload-groups {:source :edit-group}))
 
-            (dom/div nil
-                     (dom/h2 nil "Create Group")
-                     (create-group-form create-group groups-list)))))
+            (dv (dom/h2 nil "Create Group")
+                (edit-group-form edit-group groups-list)))))
 
-(def create-group-ui (om/factory CreateGroup))
+(def edit-group-ui (om/factory CreateGroup))
 
 (defn users-ui [items user-data]
-  (dom/div nil
-           (bs/table ["Username", "Groups"]
-                     (map (fn [{:keys [name groups]}]
-                            {:key name
-                             :cols [(user-link name)
-                                    (group-links groups)]})
-                          items))
-           (create-user-ui user-data)))
+  (dv
+    (bs/table ["Username", "Groups"]
+              (map (fn [{:keys [name groups]}]
+                     {:key name :cols [(user-link name) (group-links groups)]})
+                   items))
+    (edit-user-ui
+      (assoc user-data :opts {:title "Create User"
+                              :action-label "Create"
+                              :action-type :create-user}))))
 
 (defn grants-details [grants-list]
   (dom/div #js {:className "grants-details"}
@@ -130,24 +126,28 @@
                                     (str bucket_grant) (str any)]})
                 grants-list))))
 
-(defn user-ui [{:keys [username groups grants]}]
+(defn user-ui [{:keys [username groups grants] :as user-details} groups-list]
   (dom/div #js {:className "user-details"}
            (bs/table ["", ""]
                      [{:key "username" :cols ["Username" username]}
                       {:key "groups" :cols ["Groups" (group-links groups)]}])
 
            (dom/h3 nil "Grants")
-           (grants-details grants)))
+           (grants-details grants)
+
+           (edit-user-ui {:edit-user user-details
+                            :opts {:title "Edit User" :action-label "Update"
+                                   :action-type :update-user}
+                            :groups-list groups-list})))
 
 (defn groups-ui [items group-data]
-  (dom/div nil
-           (bs/table ["Group", "Groups"]
-                     (map (fn [{:keys [name groups]}]
-                            {:key name
-                             :cols [(group-link name)
-                                    (group-links groups)]}) items))
+  (dv
+    (bs/table ["Group", "Groups"]
+              (map (fn [{:keys [name groups]}]
+                     {:key name
+                      :cols [(group-link name) (group-links groups)]}) items))
 
-           (create-group-ui group-data)))
+    (edit-group-ui group-data)))
 
 (defn group-ui [{:keys [name groups direct_grants]}]
   (dom/div #js {:className "group-details"}
@@ -157,9 +157,8 @@
 
            (if (empty? direct_grants)
              (dom/h3 nil "No direct grants")
-             (dom/div nil
-                      (dom/h3 nil "Direct Grants")
-                      (grants-details direct_grants)))))
+             (dv (dom/h3 nil "Direct Grants")
+                 (grants-details direct_grants)))))
 
 (defn perms-ui [items]
   (bs/table ["App", "Permissions"]
@@ -169,16 +168,16 @@
                  items)))
 
 (defn main-panel [nav-selected
-                  {:keys [user-details users-list create-user
-                          group-details groups-list create-group
+                  {:keys [user-details users-list edit-user
+                          group-details groups-list edit-group
                           permissions-list]}]
-  (dom/div nil (condp = nav-selected
-                 :users (users-ui users-list create-user)
-                 :user (user-ui user-details)
-                 :groups (groups-ui groups-list create-group)
-                 :group (group-ui group-details)
-                 :permissions (perms-ui permissions-list)
-                 (.warn js/console "invalid nav " (str nav-selected)))))
+  (dv (condp = nav-selected
+        :users (users-ui users-list edit-user)
+        :user (user-ui user-details groups-list)
+        :groups (groups-ui groups-list edit-group)
+        :group (group-ui group-details)
+        :permissions (perms-ui permissions-list)
+        (.warn js/console "invalid nav " (str nav-selected)))))
 
 (defn loading-sign []
   (dom/p #js {:className "bg-success"
@@ -187,11 +186,11 @@
 (defui App
   static om/IQuery
   (query [this]
-         (let [create-user-query (first (om/get-query CreateUser))
-               create-group-query (first (om/get-query CreateGroup))]
+         (let [edit-user-query (first (om/get-query EditUser))
+               edit-group-query (first (om/get-query CreateGroup))]
            `[:ui
-             ~create-user-query
-             ~create-group-query
+             ~edit-user-query
+             ~edit-group-query
              (:nav-info)
              (:user-details) (:users-list)
              (:group-details) (:groups-list)
@@ -229,6 +228,10 @@
       :group (api/load-group token param1)
       (.warn js/console "invalid view" (name view)))))
 
+(defn on-user-changed []
+  (api/load-users (get-token))
+  (st/mutate! `[(ui.user.edit/reset) :ui]))
+
 (defn subscribe-all []
   (bus/unsubscribe-all)
   (bus/stop-dispatch-handler)
@@ -247,45 +250,44 @@
   (bus/subscribe :group-selected (fn [_ {:keys [name]}]
                                    (update-view :group name)
                                    (navigate :group (str "Group " name))))
-  (bus/subscribe :reload-groups (fn [_ _params]
-                                  (api/load-groups (get-token))))
+  (bus/subscribe :reload-groups (fn [_ _params] (api/load-groups (get-token))))
 
-  (bus/subscribe :create-user (fn [_ user]
-                                (api/create-user (get-token) user)))
+  (bus/subscribe :create-user (fn [_ user] (api/create-user (get-token) user)))
+  (bus/subscribe :user-created (fn [_ _] (on-user-changed)))
 
-  (bus/subscribe :user-created (fn [_ user]
-                                 (api/load-users (get-token))
-                                 (st/mutate! `[(ui.user.create/reset) :ui])))
+  (bus/subscribe :update-user (fn [_ user] (api/update-user (get-token) user)))
+  (bus/subscribe :user-updated (fn [_ _] (on-user-changed)))
 
   (bus/subscribe :create-group (fn [_ group]
                                 (api/create-group (get-token) group)))
 
   (bus/subscribe :group-created (fn [_ group]
                                  (api/load-groups (get-token))
-                                 (st/mutate! `[(ui.group.create/reset) :ui])))
+                                 (st/mutate! `[(ui.group.edit/reset) :ui])))
 
   (bus/subscribe :api-loading-change
                  #(st/mutate! `[(ui/set-loading {:value ~%2}) :ui]))
 
-  (bus/subscribe :create-user-edit-username
-                 #(st/mutate! `[(ui.user.create/set-username
-                                  {:value ~%2}) :create-user-username]))
+  (bus/subscribe :edit-user-set-username
+                 #(st/mutate! `[(ui.user.edit/set-username
+                                  {:value ~%2}) :ui])) ; TODO
+  (bus/subscribe :edit-user-set-password
+                 #(st/mutate! `[(ui.user.edit/set-password
+                                  {:value ~%2}) :ui])) ; TODO
+  (bus/subscribe :edit-user-set-group
+                 #(st/mutate! `[(ui.user.edit/set-group ~%2) :ui]))
 
-  (bus/subscribe :create-user-edit-password
-                 #(st/mutate! `[(ui.user.create/set-password
-                                  {:value ~%2}) :create-user-password]))
-  (bus/subscribe :create-user-edit-group
-                 #(st/mutate! `[(ui.user.create/set-group ~%2) :ui]))
+  (bus/subscribe :edit-group-set-groupname
+                 #(st/mutate! `[(ui.group.edit/set-groupname
+                                  {:value ~%2}) :ui])) ; TODO
 
-  (bus/subscribe :create-group-edit-groupname
-                 #(st/mutate! `[(ui.group.create/set-groupname
-                                  {:value ~%2}) :create-group-groupname]))
-
-  (bus/subscribe :create-group-edit-group
-                 #(st/mutate! `[(ui.group.create/set-group ~%2) :ui]))
+  (bus/subscribe :edit-group-set-group
+                 #(st/mutate! `[(ui.group.edit/set-group ~%2) :ui])) ; TODO
 
   (bus/subscribe :new-user
-                 #(st/mutate! `[(ui.users/set-user-details {:value ~%2})]))
+                 (fn [_ user]
+                   (st/mutate! `[(ui.user.edit/set {:value ~user}) :ui])
+                   (st/mutate! `[(ui.users/set-user-details {:value ~user})])))
   (bus/subscribe :new-users
                  #(st/mutate! `[(ui.users/set-users {:value ~%2})]))
 
