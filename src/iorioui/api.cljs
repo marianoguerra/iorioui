@@ -10,10 +10,10 @@
     (bus/dispatch :new-users users-list)))
 
 (defn on-user-response [{:keys [body]}]
-  (bus/dispatch :new-user (:user body)))
+  (bus/dispatch :new-user (update (:user body) :groups set)))
 
 (defn on-group-response [{:keys [body]}]
-  (bus/dispatch :new-group (:group body)))
+  (bus/dispatch :new-group (update (:group body) :groups set)))
 
 (defn on-groups-response [{:keys [body]}]
   (let [groups (:groups body)
