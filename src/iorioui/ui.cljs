@@ -76,6 +76,38 @@
 
 (def create-user-ui (om/factory CreateUser))
 
+(defn create-group-form [{:keys [groupname groups] :as group} groups-list]
+  (bs/form
+    (bs/form-input :id "group-groupname" :label "Name"
+                   :value groupname
+                   :on-change #(bus/dispatch
+                                 :create-group-edit-groupname %))
+    (map (fn [{group-name :name}]
+           (bs/form-check :label group-name
+                          :value (contains? groups group-name)
+                          :on-change #(bus/dispatch
+                                        :create-group-edit-group
+                                        {:name group-name :value %})))
+         groups-list)
+
+    (bs/button :level :primary :label "Create"
+               :on-click #(bus/dispatch :create-group group))))
+
+(defui CreateGroup
+  static om/IQuery
+  (query [this] '[(:create-group)])
+  Object
+  (render [this]
+          (let [{:keys [create-group groups-list]} (om/props this)]
+            (when (nil? groups-list)
+              (bus/dispatch :reload-groups {:source :create-group}))
+
+            (dom/div nil
+                     (dom/h2 nil "Create Group")
+                     (create-group-form create-group groups-list)))))
+
+(def create-group-ui (om/factory CreateGroup))
+
 (defn users-ui [items user-data]
   (dom/div nil
            (bs/table ["Username", "Groups"]
@@ -104,12 +136,15 @@
            (dom/h3 nil "Grants")
            (grants-details grants)))
 
-(defn groups-ui [items]
-  (bs/table ["Group", "Groups"]
-            (map (fn [{:keys [name groups]}]
-                   {:key name
-                    :cols [(group-link name)
-                           (group-links groups)]}) items)))
+(defn groups-ui [items group-data]
+  (dom/div nil
+           (bs/table ["Group", "Groups"]
+                     (map (fn [{:keys [name groups]}]
+                            {:key name
+                             :cols [(group-link name)
+                                    (group-links groups)]}) items))
+
+           (create-group-ui group-data)))
 
 (defn group-ui [{:keys [name groups direct_grants]}]
   (dom/div #js {:className "group-details"}
@@ -131,12 +166,13 @@
                  items)))
 
 (defn main-panel [nav-selected
-                  {:keys [user-details users-list group-details groups-list
-                          create-user permissions-list]}]
+                  {:keys [user-details users-list create-user
+                          group-details groups-list create-group
+                          permissions-list]}]
   (dom/div nil (condp = nav-selected
                  :users (users-ui users-list create-user)
                  :user (user-ui user-details)
-                 :groups (groups-ui groups-list)
+                 :groups (groups-ui groups-list create-group)
                  :group (group-ui group-details)
                  :permissions (perms-ui permissions-list)
                  (.warn js/console "invalid nav " (str nav-selected)))))
@@ -148,9 +184,11 @@
 (defui App
   static om/IQuery
   (query [this]
-         (let [create-user-query (first (om/get-query CreateUser))]
+         (let [create-user-query (first (om/get-query CreateUser))
+               create-group-query (first (om/get-query CreateGroup))]
            `[:ui
              ~create-user-query
+             ~create-group-query
              (:nav-info)
              (:user-details) (:users-list)
              (:group-details) (:groups-list)
@@ -213,6 +251,13 @@
                                  (api/load-users (get-token))
                                  (st/mutate! `[(ui.user.create/reset) :ui])))
 
+  (bus/subscribe :create-group (fn [_ group]
+                                (api/create-group (get-token) group)))
+
+  (bus/subscribe :group-created (fn [_ group]
+                                 (api/load-groups (get-token))
+                                 (st/mutate! `[(ui.group.create/reset) :ui])))
+
   (bus/subscribe :api-loading-change
                  #(st/mutate! `[(ui/set-loading {:value ~%2}) :ui]))
 
@@ -225,6 +270,14 @@
                                   {:value ~%2}) :create-user-password]))
   (bus/subscribe :create-user-edit-group
                  #(st/mutate! `[(ui.user.create/set-group ~%2) :ui]))
+
+  (bus/subscribe :create-group-edit-groupname
+                 #(st/mutate! `[(ui.group.create/set-groupname
+                                  {:value ~%2}) :create-group-groupname]))
+
+  (bus/subscribe :create-group-edit-group
+                 #(st/mutate! `[(ui.group.create/set-group ~%2) :ui]))
+
   (bus/subscribe :new-user
                  #(st/mutate! `[(ui.users/set-user-details {:value ~%2})]))
   (bus/subscribe :new-users

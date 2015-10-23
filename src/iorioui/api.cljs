@@ -72,8 +72,15 @@
   (bus/dispatch-req :user-create-response
                     (http-post "/admin/users" token user)))
 
+(defn create-group [token group]
+  (bus/dispatch-req :group-create-response
+                    (http-post "/admin/groups" token group)))
+
 (defn on-user-create-response [response]
   (bus/dispatch :user-created {:response response}))
+
+(defn on-group-create-response [response]
+  (bus/dispatch :group-created {:response response}))
 
 (defn subscribe-all []
   (bus/subscribe :users-response (with-status 200 on-users-response
@@ -85,6 +92,10 @@
   (bus/subscribe :user-create-response (with-status 201
                                          on-user-create-response
                                          (on-create-error "user")))
+
+  (bus/subscribe :group-create-response (with-status 201
+                                          on-group-create-response
+                                          (on-create-error "group")))
 
   (bus/subscribe :group-response (with-status 200 on-group-response
                                    (on-other-status "group")))
