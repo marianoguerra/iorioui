@@ -25,15 +25,14 @@
   (let [perms-str (into {} (map (fn [[k v]] [(name k) v]) body))]
     (bus/dispatch :new-permissions perms-str)))
 
-(defn on-other-status [name]
+(defn on-action-error [action name]
   (fn  [{:keys [status body]}]
-    (js/alert (str "Error loading " name))
+    (js/alert (str "Error " action " " name))
     (.warn js/console "got status" status (str body))))
 
-(defn on-create-error [name]
-  (fn  [{:keys [status body]}]
-    (js/alert (str "Error creating " name))
-    (.warn js/console "got status" status (str body))))
+(defn on-loading-error [name] (on-action-error "loading" name))
+(defn on-create-error [name] (on-action-error "creating" name))
+(defn on-update-error [name] (on-action-error "updating" name))
 
 (defn with-status [expected-status on-status other-status]
   (fn [event {:keys [status] :as response}]
@@ -51,6 +50,10 @@
 
 (defn http-post [path-parts token body]
   (http/post (api-path path-parts)
+             {:json-params body :headers {"x-session" token}}))
+
+(defn http-put [path-parts token body]
+  (http/put (api-path path-parts)
              {:json-params body :headers {"x-session" token}}))
 
 (defn load-users [token]
@@ -71,36 +74,41 @@
 (defn create-user [token user]
   (bus/dispatch-req :user-create-response (http-post [:users] token user)))
 
+(defn update-user [token {:keys [username] :as user}]
+  (bus/dispatch-req :user-update-response
+                    (http-put [:users username] token user)))
+
 (defn create-group [token group]
   (bus/dispatch-req :group-create-response (http-post [:groups] token group)))
 
-(defn on-user-create-response [response]
-  (bus/dispatch :user-created {:response response}))
-
-(defn on-group-create-response [response]
-  (bus/dispatch :group-created {:response response}))
+(defn dispatch-response [event-type]
+  (fn [response] (bus/dispatch event-type {:response response})))
 
 (defn subscribe-all []
   (bus/subscribe :users-response (with-status 200 on-users-response
-                                   (on-other-status "users")))
+                                   (on-loading-error "users")))
 
   (bus/subscribe :user-response (with-status 200 on-user-response
-                                  (on-other-status "user")))
+                                  (on-loading-error "user")))
 
   (bus/subscribe :user-create-response (with-status 201
-                                         on-user-create-response
+                                         (dispatch-response :user-created)
                                          (on-create-error "user")))
 
+  (bus/subscribe :user-update-response (with-status 200
+                                         (dispatch-response :user-updated)
+                                         (on-update-error "user")))
+
   (bus/subscribe :group-create-response (with-status 201
-                                          on-group-create-response
+                                          (dispatch-response :group-created)
                                           (on-create-error "group")))
 
   (bus/subscribe :group-response (with-status 200 on-group-response
-                                   (on-other-status "group")))
+                                   (on-loading-error "group")))
 
   (bus/subscribe :groups-response (with-status 200 on-groups-response
-                                    (on-other-status "groups")))
+                                    (on-loading-error "groups")))
 
   (bus/subscribe :permissions-response (with-status 200 
                                          on-permissions-response
-                                         (on-other-status "permissions"))))
+                                         (on-loading-error "permissions"))))
