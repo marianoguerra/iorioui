@@ -273,7 +273,9 @@
   (bus/subscribe :update-user (fn [_ user] (api/update-user (get-token) user)))
   (bus/subscribe :delete-user (fn [_ user] (api/delete-user (get-token) user)))
   (bus/subscribe :user-updated (fn [_ _] (on-user-changed)))
-  (bus/subscribe :user-deleted (fn [_ _] (on-user-changed)))
+  (bus/subscribe :user-deleted (fn [_ _]
+                                 (on-user-changed)
+                                 (navigate :users "Users")))
 
   (bus/subscribe :create-group (fn [_ group]
                                 (api/create-group (get-token) group)))

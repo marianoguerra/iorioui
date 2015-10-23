@@ -85,7 +85,7 @@
 
 (defn delete-user [token {:keys [username] :as user}]
   (bus/dispatch-req :user-delete-response
-                    (http-delete [:users username] token)))
+                    (http-delete [:user username] token)))
 
 (defn create-group [token group]
   (bus/dispatch-req :group-create-response (http-post [:groups] token group)))
@@ -108,7 +108,7 @@
                                          (dispatch-response :user-updated)
                                          (on-update-error "user")))
 
-  (bus/subscribe :user-delete-response (with-status 200
+  (bus/subscribe :user-delete-response (with-status 204
                                          (dispatch-response :user-deleted)
                                          (on-delete-error "user")))
 
