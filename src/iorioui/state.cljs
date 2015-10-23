@@ -41,6 +41,15 @@
       {:value value}
       {:value :not-found})))
 
+(defn sort-groups-attr [{:keys [groups] :as obj}]
+  (if groups
+    (assoc obj :groups (into [] (sort groups)))
+    obj))
+
+; sort the :groups attr inside each map, then sort by name
+(defn sort-name-and-groups [items]
+  (into [] (sort-by :name (map sort-groups-attr items))))
+
 (defmulti read (fn [env key params] key))
 
 (defmethod read :default
@@ -133,7 +142,7 @@
 
 (defmethod mutate 'ui.users/set-users [{:keys [state]} _ {:keys [value]}]
   {:value [:users-list]
-   :action #(set-key state :users-list value)})
+   :action #(set-key state :users-list (sort-name-and-groups value))})
 
 (defmethod mutate 'ui.groups/set-group-details
   [{:keys [state]} _ {:keys [value]}]
@@ -142,7 +151,7 @@
 
 (defmethod mutate 'ui.groups/set-groups [{:keys [state]} _ {:keys [value]}]
   {:value [:groups-list]
-   :action #(set-key state :groups-list value)})
+   :action #(set-key state :groups-list (sort-name-and-groups value))})
 
 (defmethod mutate 'ui.perms/set-perms [{:keys [state]} _ {:keys [value]}]
   {:value [:permissions-list]

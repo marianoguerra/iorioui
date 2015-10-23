@@ -13,6 +13,9 @@
 
 (enable-console-print!)
 
+(defn dv [& items]
+  (dom/div nil items))
+
 (defn nav-mark-selected [items selected]
   (map (fn [{:keys [id content] :as item}]
          (let [active (= id selected)]
