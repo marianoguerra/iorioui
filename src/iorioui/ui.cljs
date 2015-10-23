@@ -230,6 +230,9 @@
       (.warn js/console "invalid view" (name view)))))
 
 (defn subscribe-all []
+  (bus/unsubscribe-all)
+  (bus/stop-dispatch-handler)
+
   (bus/start-dispatch-handler)
   (api/subscribe-all)
 

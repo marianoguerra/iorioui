@@ -27,7 +27,15 @@
                 (prn "Error calling handler" handler error))))
           (recur)))))
 
+(defn stop-dispatch-handler []
+  (dispatch ::exit))
+
+(defn unsubscribe-all []
+  (reset! dispatch-handlers {}))
+
 (defn dispatch-req [event-key req]
   (go (let [response (<! req)]
-        (dispatch event-key response))))
+        (if (= response ::exit)
+          (prn "stoping dispatcher")
+          (dispatch event-key response)))))
 
