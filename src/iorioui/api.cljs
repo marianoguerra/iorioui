@@ -83,9 +83,13 @@
   (bus/dispatch-req :user-update-response
                     (http-put [:users username] token user)))
 
-(defn delete-user [token {:keys [username] :as user}]
+(defn delete-user [token {:keys [username]}]
   (bus/dispatch-req :user-delete-response
                     (http-delete [:user username] token)))
+
+(defn delete-group [token {:keys [name]}]
+  (bus/dispatch-req :group-delete-response
+                    (http-delete [:group name] token)))
 
 (defn create-group [token group]
   (bus/dispatch-req :group-create-response (http-post [:groups] token group)))
@@ -115,6 +119,10 @@
   (bus/subscribe :group-create-response (with-status 201
                                           (dispatch-response :group-created)
                                           (on-create-error "group")))
+
+  (bus/subscribe :group-delete-response (with-status 204
+                                          (dispatch-response :group-deleted)
+                                          (on-delete-error "group")))
 
   (bus/subscribe :group-response (with-status 200 on-group-response
                                    (on-loading-error "group")))

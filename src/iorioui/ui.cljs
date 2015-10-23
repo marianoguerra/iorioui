@@ -159,11 +159,13 @@
 
     (edit-group-ui group-data)))
 
-(defn group-ui [{:keys [name groups direct_grants]}]
+(defn group-ui [{:keys [name groups direct_grants] :as group-details}]
   (dom/div #js {:className "group-details"}
            (bs/table ["", ""]
                      [{:key "name" :cols ["Name" name]}
                       {:key "groups" :cols ["Groups" (group-links groups)]}])
+
+           (action-button "Delete Group" :delete-group group-details :danger)
 
            (if (empty? direct_grants)
              (dom/h3 nil "No direct grants")
@@ -246,6 +248,10 @@
   (api/load-users (get-token))
   (st/mutate! `[(ui.user.edit/reset) :ui]))
 
+(defn on-group-changed []
+  (api/load-groups (get-token))
+  (st/mutate! `[(ui.user.edit/reset) :ui]))
+
 (defn subscribe-all []
   (bus/unsubscribe-all)
   (bus/stop-dispatch-handler)
@@ -279,6 +285,11 @@
 
   (bus/subscribe :create-group (fn [_ group]
                                 (api/create-group (get-token) group)))
+  (bus/subscribe :delete-group (fn [_ group]
+                                 (api/delete-group (get-token) group)))
+  (bus/subscribe :group-deleted (fn [_ _]
+                                 (on-group-changed)
+                                 (navigate :groups "Groups")))
 
   (bus/subscribe :group-created (fn [_ group]
                                  (api/load-groups (get-token))
