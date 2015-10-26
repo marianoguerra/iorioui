@@ -65,10 +65,10 @@
   (bus/dispatch-req :users-response (http-get [:users] token)))
 
 (defn load-user [token username]
-  (bus/dispatch-req :user-response (http-get [:user username] token)))
+  (bus/dispatch-req :user-response (http-get [:users username] token)))
 
 (defn load-group [token group]
-  (bus/dispatch-req :group-response (http-get [:group group] token)))
+  (bus/dispatch-req :group-response (http-get [:groups group] token)))
 
 (defn load-groups [token]
   (bus/dispatch-req :groups-response (http-get [:groups] token)))
@@ -85,11 +85,11 @@
 
 (defn delete-user [token {:keys [username]}]
   (bus/dispatch-req :user-delete-response
-                    (http-delete [:user username] token)))
+                    (http-delete [:users username] token)))
 
 (defn delete-group [token {:keys [name]}]
   (bus/dispatch-req :group-delete-response
-                    (http-delete [:group name] token)))
+                    (http-delete [:groups name] token)))
 
 (defn create-group [token group]
   (bus/dispatch-req :group-create-response (http-post [:groups] token group)))
