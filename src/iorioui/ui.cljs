@@ -299,7 +299,9 @@
 
   (bus/subscribe :update-user (fn [_ user] (api/update-user (get-token) user)))
   (bus/subscribe :delete-user (fn [_ user] (api/delete-user (get-token) user)))
-  (bus/subscribe :user-updated (fn [_ _] (on-user-changed)))
+  (bus/subscribe :user-updated (fn [_ _]
+                                 (on-user-changed)
+                                 (navigate :users "Users")))
   (bus/subscribe :user-deleted (fn [_ _]
                                  (on-user-changed)
                                  (navigate :users "Users")))
