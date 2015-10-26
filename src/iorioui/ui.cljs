@@ -117,27 +117,57 @@
 
 (def user-details (om/factory UserDetails))
 
+(defn edit-group-form [{:keys [groupname groups] :as group} groups-list
+                       {:keys [title action-label action-type update?]}]
+  (dv (dom/h2 nil title)
+      (bs/form
+        (bs/form-input :id "group-groupname" :label "Name" :value groupname
+                       :readonly update?
+                       :on-change #(bus/dispatch :edit-group-set-groupname %))
+        (group-selector groups groups-list :edit-group-set-group)
+        (action-button action-label action-type group))))
 
-(defn edit-group-form [{:keys [groupname groups] :as group} groups-list]
-  (bs/form
-    (bs/form-input :id "group-groupname" :label "Name" :value groupname
-                   :on-change #(bus/dispatch :edit-group-set-groupname %))
-    (group-selector groups groups-list :edit-group-set-group)
-    (action-button "Create" :create-group group)))
-
-(defui CreateGroup
+(defui EditGroup
   static om/IQuery
   (query [this] '[(:edit-group)])
   Object
   (render [this]
-          (let [{:keys [edit-group groups-list]} (om/props this)]
-            (when (nil? groups-list)
-              (bus/dispatch :reload-groups {:source :edit-group}))
+          (let [{:keys [edit-group groups-list opts]} (om/props this)]
+                (edit-group-form edit-group groups-list opts))))
 
-            (dv (dom/h2 nil "Create Group")
-                (edit-group-form edit-group groups-list)))))
+(def edit-group-ui (om/factory EditGroup))
 
-(def edit-group-ui (om/factory CreateGroup))
+(defn group-ui [{:keys [name groups direct_grants] :as group-details}
+                edit-group groups-list]
+  (dom/div #js {:className "group-details"}
+           (bs/table ["" ""]
+                     [{:key "name" :cols ["Name" name]}
+                      {:key "groups" :cols ["Groups" (group-links groups)]}])
+
+           (action-button "Delete Group" :delete-group group-details :danger)
+
+           (if (empty? direct_grants)
+             (dom/h3 nil "No Direct Grants")
+             (dv (dom/h3 nil "Direct Grants")
+                 (grants-details direct_grants)))
+
+           (prn "edit group" edit-group)
+           (edit-group-ui {:edit-group edit-group
+                           :opts {:title "Edit Group"
+                                  :update? true
+                                  :action-label "Update"
+                                  :action-type :update-group}
+                           :groups-list groups-list})))
+
+(defui GroupDetails
+  static om/IQuery
+  (query [this] '[(:edit-groups)])
+  Object
+  (render [this]
+          (let [{:keys [edit-group groups-list group-details]} (om/props this)]
+            (group-ui group-details edit-group groups-list))))
+
+(def group-details (om/factory GroupDetails))
 
 (defn users-ui [items user-data]
   (dv
@@ -145,32 +175,20 @@
               (map (fn [{:keys [name groups]}]
                      {:key name :cols [(user-link name) (group-links groups)]})
                    items))
-    (edit-user-ui
-      (assoc user-data :opts {:title "Create User"
-                              :action-label "Create"
-                              :action-type :create-user}))))
+    (edit-user-ui (assoc user-data :opts {:title "Create User"
+                                          :action-label "Create"
+                                          :action-type :create-user}))))
 
 (defn groups-ui [items group-data]
   (dv
-    (bs/table ["Group", "Groups"]
+    (bs/table ["Group" "Groups"]
               (map (fn [{:keys [name groups]}]
                      {:key name
                       :cols [(group-link name) (group-links groups)]}) items))
 
-    (edit-group-ui group-data)))
-
-(defn group-ui [{:keys [name groups direct_grants] :as group-details}]
-  (dom/div #js {:className "group-details"}
-           (bs/table ["", ""]
-                     [{:key "name" :cols ["Name" name]}
-                      {:key "groups" :cols ["Groups" (group-links groups)]}])
-
-           (action-button "Delete Group" :delete-group group-details :danger)
-
-           (if (empty? direct_grants)
-             (dom/h3 nil "No direct grants")
-             (dv (dom/h3 nil "Direct Grants")
-                 (grants-details direct_grants)))))
+    (edit-group-ui (assoc group-data :opts {:title "Create Group"
+                                            :action-label "Create"
+                                            :action-type :create-group}))))
 
 (defn perms-ui [items]
   (bs/table ["App", "Permissions"]
@@ -180,7 +198,7 @@
                  items)))
 
 (defn main-panel [nav-selected {:keys [users-list edit-user
-                                       group-details groups-list edit-group
+                                       groups-list edit-group
                                        permissions-list]}]
   (when (nil? users-list) (bus/dispatch :reload-users {:source :users-ui}))
   (when (nil? groups-list) (bus/dispatch :reload-groups {:source :edit-user}))
@@ -189,7 +207,7 @@
         :users (users-ui users-list edit-user)
         :user (user-details edit-user)
         :groups (groups-ui groups-list edit-group)
-        :group (group-ui group-details)
+        :group (group-details edit-group)
         :permissions (perms-ui permissions-list)
         (.warn js/console "invalid nav " (str nav-selected)))))
 
@@ -201,15 +219,16 @@
   static om/IQuery
   (query [this]
          (let [edit-user-query (first (om/get-query EditUser))
-               edit-group-query (first (om/get-query CreateGroup))
-               user-details-query (first (om/get-query UserDetails))]
+               edit-group-query (first (om/get-query EditGroup))
+               user-details-query (first (om/get-query UserDetails))
+               group-details-query (first (om/get-query GroupDetails))]
            `[:ui
              ~edit-user-query
              ~edit-group-query
              ~user-details-query
+             ~group-details-query
              (:nav-info)
-             (:users-list)
-             (:group-details) (:groups-list)
+             (:groups-list)
              (:permissions-list)]))
   Object
   (render [this]
@@ -294,6 +313,8 @@
   (bus/subscribe :group-created (fn [_ group]
                                  (api/load-groups (get-token))
                                  (st/mutate! `[(ui.group.edit/reset) :ui])))
+  (bus/subscribe :update-group (fn [_ group]
+                                 (api/update-group (get-token) group)))
 
   (bus/subscribe :api-loading-change
                  #(st/mutate! `[(ui/set-loading {:value ~%2}) :ui]))
@@ -323,7 +344,11 @@
                  #(st/mutate! `[(ui.users/set-users {:value ~%2})]))
 
   (bus/subscribe :new-group
-                 #(st/mutate! `[(ui.groups/set-group-details {:value ~%2})]))
+                 (fn [_ group]
+                   (let [{groupname :name groups :groups} group
+                         edit-group {:groupname groupname :groups groups}]
+                     (st/mutate! `[(ui.group.edit/set {:value ~edit-group}) :ui])
+                     (st/mutate! `[(ui.groups/set-group-details {:value ~group})]))))
 
   (bus/subscribe :new-groups
                  #(st/mutate! `[(ui.groups/set-groups {:value ~%2})]))

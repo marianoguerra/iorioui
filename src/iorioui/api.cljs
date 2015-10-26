@@ -94,6 +94,10 @@
 (defn create-group [token group]
   (bus/dispatch-req :group-create-response (http-post [:groups] token group)))
 
+(defn update-group [token {:keys [groupname] :as group}]
+  (bus/dispatch-req :group-update-response
+                    (http-put [:groups groupname] token group)))
+
 (defn dispatch-response [event-type]
   (fn [response] (bus/dispatch event-type {:response response})))
 

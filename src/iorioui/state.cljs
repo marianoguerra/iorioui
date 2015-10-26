@@ -68,10 +68,12 @@
       :user-details user-details}}))
 
 (defmethod read :edit-group [{:keys [state]} _ _]
-  (let [st @state]
+  (let [{:keys [groups-list group-details ui]} @state
+        edit-group (:edit-group ui)]
     {:value
-     {:edit-group (get-in st [:ui :edit-group])
-      :groups-list (:groups-list st)}}))
+     {:edit-group edit-group
+      :groups-list groups-list
+      :group-details group-details}}))
 
 (defmethod read :nav-info [{:keys [state]} _ _]
   (let [{:keys [nav-items nav-selected title loading brand-title]} (:ui @state)]
@@ -120,6 +122,10 @@
 (defmethod mutate 'ui.group.edit/reset [{:keys [state]} _ {:keys [value]}]
   {:value [:edit-group]
    :action #(set-in state [:ui :edit-group] clean-edit-group)})
+
+(defmethod mutate 'ui.group.edit/set [{:keys [state]} _ {:keys [value]}]
+  {:value [:edit-group]
+   :action #(set-in state [:ui :edit-group] value)})
 
 (defmethod mutate 'ui.group.edit/set-group
   [{:keys [state]} _ {:keys [name value]}]
