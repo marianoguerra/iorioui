@@ -307,9 +307,12 @@
                                 (api/create-group (get-token) group)))
   (bus/subscribe :delete-group (fn [_ group]
                                  (api/delete-group (get-token) group)))
+  (bus/subscribe :group-updated (fn [_ _]
+                                  (on-group-changed)
+                                  (navigate :groups "Groups")))
   (bus/subscribe :group-deleted (fn [_ _]
-                                 (on-group-changed)
-                                 (navigate :groups "Groups")))
+                                  (on-group-changed)
+                                  (navigate :groups "Groups")))
 
   (bus/subscribe :group-created (fn [_ group]
                                  (api/load-groups (get-token))

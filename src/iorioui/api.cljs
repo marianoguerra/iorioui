@@ -124,6 +124,10 @@
                                           (dispatch-response :group-created)
                                           (on-create-error "group")))
 
+  (bus/subscribe :group-update-response (with-status 200
+                                          (dispatch-response :group-updated)
+                                          (on-update-error "group")))
+
   (bus/subscribe :group-delete-response (with-status 204
                                           (dispatch-response :group-deleted)
                                           (on-delete-error "group")))
