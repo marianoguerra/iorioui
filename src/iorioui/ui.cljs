@@ -124,7 +124,8 @@
         (bs/form-input :id "group-groupname" :label "Name" :value groupname
                        :readonly update?
                        :on-change #(bus/dispatch :edit-group-set-groupname %))
-        (group-selector groups groups-list :edit-group-set-group)
+        (group-selector groups (remove #(= groupname (:name %)) groups-list)
+                        :edit-group-set-group)
         (action-button action-label action-type group))))
 
 (defui EditGroup
