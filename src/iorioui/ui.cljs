@@ -229,6 +229,7 @@
              ~user-details-query
              ~group-details-query
              (:nav-info)
+             (:users-list)
              (:groups-list)
              (:permissions-list)]))
   Object

@@ -76,12 +76,17 @@
 (defn load-permissions [token]
   (bus/dispatch-req :permissions-response (http-get [:permissions] token)))
 
+(defn clean-update-user [{:keys [password] :as user}]
+  (if (= (clojure.string/trim (or password "")) "")
+    (dissoc user :password)
+    user))
+
 (defn create-user [token user]
   (bus/dispatch-req :user-create-response (http-post [:users] token user)))
 
 (defn update-user [token {:keys [username] :as user}]
-  (bus/dispatch-req :user-update-response
-                    (http-put [:users username] token user)))
+  (bus/dispatch-req :user-update-response (http-put [:users username] token
+                                                    (clean-update-user user))))
 
 (defn delete-user [token {:keys [username]}]
   (bus/dispatch-req :user-delete-response
