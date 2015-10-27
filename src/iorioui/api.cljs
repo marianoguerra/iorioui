@@ -103,6 +103,12 @@
   (bus/dispatch-req :group-update-response
                     (http-put [:groups groupname] token group)))
 
+(defn grant [token grant]
+  (bus/dispatch-req :grant-response (http-post [:grants] token grant)))
+
+(defn revoke [token grant]
+  (bus/dispatch-req :revoke-response (http-post [:revokes] token grant)))
+
 (defn dispatch-response [event-type]
   (fn [response] (bus/dispatch event-type {:response response})))
 

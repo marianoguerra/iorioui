@@ -3,6 +3,7 @@
 
 (def clean-edit-user {:username "" :password "" :groups #{"g-authenticated"}})
 (def clean-edit-group {:groupname "" :groups #{}})
+(def clean-edit-grant {:role "" :role-type "group" :permission nil})
 
 (def config (js->clj (or (.. js/window -_ioriouicfg) #js {})))
 (def api-base (or (get config "apibase") "/admin"))
@@ -15,13 +16,14 @@
           :loading false
           :edit-user clean-edit-user
           :edit-group clean-edit-group
+          :edit-grant clean-edit-grant
           :nav-items [{:id :users :content "Users"}
                       {:id :groups :content "Groups"}
                       {:id :permissions :content "Permissions"}]}
      :user-details nil
      :users-list nil
      :groups-list nil
-     :permissions-list {"iorio" ["put" "get" "delete"]}}))
+     :permissions-list nil}))
 
 (defn set-key [state k v]
   (swap! state #(assoc % k v)))
@@ -75,6 +77,13 @@
       :groups-list groups-list
       :group-details group-details}}))
 
+(defmethod read :edit-grant [{:keys [state]} _ _]
+  (let [{:keys [permissions-list ui]} @state
+        edit-grant (:edit-grant ui)]
+    {:value
+     {:edit-grant edit-grant
+      :permissions-list permissions-list}}))
+
 (defmethod read :nav-info [{:keys [state]} _ _]
   (let [{:keys [nav-items nav-selected title loading brand-title]} (:ui @state)]
     {:value {:nav-items nav-items :nav-selected nav-selected
@@ -85,74 +94,63 @@
     (conj-in state path name)
     (disj-in state path name)))
 
+(defn mutate-set [changes path {:keys [state]} {:keys [value]}]
+  {:value [changes] :action #(set-in state path value)})
+
 (defmulti mutate om/dispatch)
 
-(defmethod mutate 'ui/set-loading [{:keys [state]} _ {:keys [value]}]
-  {:value [:ui]
-   :action #(set-in state [:ui :loading] value)})
+(defmethod mutate 'ui/set-loading [env _ args]
+  (mutate-set :ui [:ui :loading] env args))
 
-(defmethod mutate 'ui.user.edit/set-username
-  [{:keys [state]} _ {:keys [value]}]
-  {:value [:edit-user]
-   :action #(set-in state [:ui :edit-user :username] value)})
-
-(defmethod mutate 'ui.user.edit/set-password
-  [{:keys [state]} _ {:keys [value]}]
-  {:value [:edit-user]
-   :action #(set-in state [:ui :edit-user :password] value)})
-
-(defmethod mutate 'ui.user.edit/reset [{:keys [state]} _ _]
-  {:value [:edit-user]
-   :action #(set-in state [:ui :edit-user] clean-edit-user)})
-
-(defmethod mutate 'ui.user.edit/set [{:keys [state]} _ {:keys [value]}]
-  {:value [:edit-user]
-   :action #(set-in state [:ui :edit-user] value)})
+(defmethod mutate 'ui.user.edit/set-username [env _ args]
+  (mutate-set :edit-user [:ui :edit-user :username] env args))
+(defmethod mutate 'ui.user.edit/set-password [env _ args]
+  (mutate-set :edit-user [:ui :edit-user :password] env args))
+(defmethod mutate 'ui.user.edit/reset [env _ _]
+  (mutate-set :edit-user [:ui :edit-user] env {:value clean-edit-user}))
+(defmethod mutate 'ui.user.edit/set [env _ args]
+  (mutate-set :edit-user [:ui :edit-user] env args))
 
 (defmethod mutate 'ui.user.edit/set-group
   [{:keys [state]} _ {:keys [name value]}]
   {:value [:edit-user]
    :action #(set-group state [:ui :edit-user :groups] name value)})
 
-(defmethod mutate 'ui.group.edit/set-groupname
-  [{:keys [state]} _ {:keys [value]}]
-  {:value [:edit-group]
-   :action #(set-in state [:ui :edit-group :groupname] value)})
-
-(defmethod mutate 'ui.group.edit/reset [{:keys [state]} _ {:keys [value]}]
-  {:value [:edit-group]
-   :action #(set-in state [:ui :edit-group] clean-edit-group)})
-
-(defmethod mutate 'ui.group.edit/set [{:keys [state]} _ {:keys [value]}]
-  {:value [:edit-group]
-   :action #(set-in state [:ui :edit-group] value)})
+(defmethod mutate 'ui.group.edit/set-groupname [env _ args]
+  (mutate-set :edit-group [:ui :edit-group :groupname] env args))
+(defmethod mutate 'ui.group.edit/reset [env _ _]
+  (mutate-set :edit-group [:ui :edit-group] env {:value clean-edit-group}))
+(defmethod mutate 'ui.group.edit/set [env _ args]
+  (mutate-set :edit-group [:ui :edit-group] env args))
 
 (defmethod mutate 'ui.group.edit/set-group
   [{:keys [state]} _ {:keys [name value]}]
   {:value [:edit-group]
    :action #(set-group state [:ui :edit-group :groups] name value)})
 
-(defmethod mutate 'ui.users/set-user-details
-  [{:keys [state]} _ {:keys [value]}]
-  {:value [:user-details]
-   :action #(set-key state :user-details value)})
+(defmethod mutate 'ui.grant.edit.set/role [env _ args]
+  (mutate-set :edit-grant [:ui :edit-grant :role] env args))
+(defmethod mutate 'ui.grant.edit.set/role-type [env _ args]
+  (mutate-set :edit-grant [:ui :edit-grant :role-type] env args))
+(defmethod mutate 'ui.grant.edit.set/permission [env _ args]
+  (mutate-set :edit-grant [:ui :edit-grant :permission] env args))
+
+(defmethod mutate 'ui.users/set-user-details [env _ args]
+  (mutate-set :user-details [:user-details] env args))
 
 (defmethod mutate 'ui.users/set-users [{:keys [state]} _ {:keys [value]}]
   {:value [:users-list]
    :action #(set-key state :users-list (sort-name-and-groups value))})
 
-(defmethod mutate 'ui.groups/set-group-details
-  [{:keys [state]} _ {:keys [value]}]
-  {:value [:group-details]
-   :action #(set-key state :group-details value)})
+(defmethod mutate 'ui.groups/set-group-details [env _ args]
+  (mutate-set :group-details [:group-details] env args))
 
 (defmethod mutate 'ui.groups/set-groups [{:keys [state]} _ {:keys [value]}]
   {:value [:groups-list]
    :action #(set-key state :groups-list (sort-name-and-groups value))})
 
-(defmethod mutate 'ui.perms/set-perms [{:keys [state]} _ {:keys [value]}]
-  {:value [:permissions-list]
-   :action #(set-key state :permissions-list value)})
+(defmethod mutate 'ui.perms/set-perms [env _ args]
+  (mutate-set :permissions-list [:permissions-list] env args))
 
 (defmethod mutate 'ui/navigate
   [{:keys [state]} _ {:keys [nav-selected title loading]}]
@@ -164,8 +162,7 @@
 
 (def reconciler
   (om/reconciler
-    {:state app-state
-     :parser (om/parser {:read read :mutate mutate})}))
+    {:state app-state :parser (om/parser {:read read :mutate mutate})}))
 
 (defn mutate! [query]
   (om/transact! reconciler query))

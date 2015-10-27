@@ -152,7 +152,6 @@
              (dv (dom/h3 nil "Direct Grants")
                  (grants-details direct_grants)))
 
-           (prn "edit group" edit-group)
            (edit-group-ui {:edit-group edit-group
                            :opts {:title "Edit Group"
                                   :update? true
@@ -180,12 +179,60 @@
                                           :action-label "Create"
                                           :action-type :create-user}))))
 
-(defn groups-ui [items group-data]
+(defn edit-grant-form [{:keys [role role-type permission] :as grant}
+                      permissions opts]
+  (dv (dom/h2 nil "Add Grant")
+      (bs/form
+        (bs/form-row "add-grant-role-type" "Role Type"
+                     (bs/form-radio :id "add-grant-role-type" :value role-type
+                                    :on-change #(bus/dispatch
+                                                  :ui.grant.edit.set/role-type %)
+                                    :values [{:label "User" :value "user"}
+                                             {:label "Group" :value "group"}]))
+
+        (bs/form-input :id "add-grant-role" :label "Role" :value  role
+                       :on-change #(bus/dispatch :ui.grant.edit.set/role %))
+
+        (bs/form-row "add-grant-permission" "Permission"
+                     (bs/form-select :id "add-grant-permission"
+                                     :on-change #(bus/dispatch
+                                                   :ui.grant.edit.set/permission %)
+                                     :value permission
+                                     :values permissions))
+
+        (action-button "Add Grant" :ui.grant.edit/create grant))))
+
+(defn permissions-to-options [items]
+  (let [value-list (mapcat (fn [[app perms]] (map #(str app "." %) perms)) items)
+        sorted-list (sort value-list)
+        options-list (map (fn [v] {:value v :label v}) sorted-list)]
+    options-list))
+
+(defn maybe-set-default-perm [{:keys [permission] :as grant} permissions]
+  (if (nil? permission)
+    (assoc grant :permission (:value (first permissions)))
+    grant))
+
+(defui EditGrant
+  static om/IQuery
+  (query [this] '[(:edit-grant)])
+  Object
+  (render [this]
+          (let [{:keys [edit-grant permissions-list opts]} (om/props this)
+                permissions (permissions-to-options permissions-list)
+                edit-grant-default-perm (maybe-set-default-perm edit-grant permissions)]
+            (edit-grant-form edit-grant-default-perm permissions opts))))
+
+(def edit-grant-ui (om/factory EditGrant))
+
+(defn groups-ui [items group-data edit-grant]
   (dv
     (bs/table ["Group" "Groups"]
               (map (fn [{:keys [name groups]}]
                      {:key name
                       :cols [(group-link name) (group-links groups)]}) items))
+
+    (edit-grant-ui edit-grant) 
 
     (edit-group-ui (assoc group-data :opts {:title "Create Group"
                                             :action-label "Create"
@@ -200,14 +247,16 @@
 
 (defn main-panel [nav-selected {:keys [users-list edit-user
                                        groups-list edit-group
+                                       edit-grant
                                        permissions-list]}]
-  (when (nil? users-list) (bus/dispatch :reload-users {:source :users-ui}))
-  (when (nil? groups-list) (bus/dispatch :reload-groups {:source :edit-user}))
+  (when (nil? users-list) (bus/dispatch :reload-users {}))
+  (when (nil? groups-list) (bus/dispatch :reload-groups {}))
+  (when (nil? permissions-list) (bus/dispatch :reload-permissions {}))
 
   (dv (condp = nav-selected
         :users (users-ui users-list edit-user)
         :user (user-details edit-user)
-        :groups (groups-ui groups-list edit-group)
+        :groups (groups-ui groups-list edit-group edit-grant)
         :group (group-details edit-group)
         :permissions (perms-ui permissions-list)
         (.warn js/console "invalid nav " (str nav-selected)))))
@@ -219,15 +268,17 @@
 (defui App
   static om/IQuery
   (query [this]
-         (let [edit-user-query (first (om/get-query EditUser))
-               edit-group-query (first (om/get-query EditGroup))
-               user-details-query (first (om/get-query UserDetails))
-               group-details-query (first (om/get-query GroupDetails))]
+         (let [[edit-user-query] (om/get-query EditUser)
+               [edit-group-query] (om/get-query EditGroup)
+               [user-details-query] (om/get-query UserDetails)
+               [group-details-query] (om/get-query GroupDetails)
+               [edit-grant-query] (om/get-query EditGrant)]
            `[:ui
              ~edit-user-query
              ~edit-group-query
              ~user-details-query
              ~group-details-query
+             ~edit-grant-query
              (:nav-info)
              (:users-list)
              (:groups-list)
@@ -273,6 +324,17 @@
   (api/load-groups (get-token))
   (st/mutate! `[(ui.user.edit/reset) :ui]))
 
+(defn on-event-mutate [event-type value changes]
+  (let [event-symbol (symbol (namespace event-type) (name event-type))]
+    (st/mutate! `[(~event-symbol {:value ~value}) ~changes])))
+
+(defn to-mutate [event-type changes]
+  (bus/subscribe event-type #(on-event-mutate %1 %2 changes)))
+
+(defn on-grant-create [_ {:keys [role role-type permission]}]
+  (let [grant {:role (str role-type "/" role) :permission permission}]
+    (api/grant (get-token) grant)))
+
 (defn subscribe-all []
   (bus/unsubscribe-all)
   (bus/stop-dispatch-handler)
@@ -292,7 +354,8 @@
                                    (update-view :group name)
                                    (navigate :group (str "Group " name))))
   (bus/subscribe :reload-groups (fn [_ _] (api/load-groups (get-token))))
-  (bus/subscribe :reload-groups (fn [_ _] (api/load-users (get-token))))
+  (bus/subscribe :reload-users (fn [_ _] (api/load-users (get-token))))
+  (bus/subscribe :reload-permissions (fn [_ _] (api/load-permissions (get-token))))
 
   (bus/subscribe :create-user (fn [_ user] (api/create-user (get-token) user)))
   (bus/subscribe :user-created (fn [_ _] (on-user-changed)))
@@ -338,6 +401,12 @@
   (bus/subscribe :edit-group-set-groupname
                  #(st/mutate! `[(ui.group.edit/set-groupname
                                   {:value ~%2}) :ui])) ; TODO
+
+  (to-mutate :ui.grant.edit.set/role-type :ui)
+  (to-mutate :ui.grant.edit.set/role :ui)
+  (to-mutate :ui.grant.edit.set/permission :ui)
+  (bus/subscribe :ui.grant.edit/create on-grant-create)
+
 
   (bus/subscribe :edit-group-set-group
                  #(st/mutate! `[(ui.group.edit/set-group ~%2) :ui])) ; TODO

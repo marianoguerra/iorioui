@@ -55,7 +55,7 @@
                                                 (map #(dom/td nil %) cols)))
                                               rows)))))
 (defn form [& items]
-    (dom/form nil items))
+  (apply dom/form nil items))
 
 (defn on-change-cb [callback]
   (when callback
@@ -74,22 +74,26 @@
 (defn on-click-cb [callback]
   (when callback (fn [e] (callback))))
 
+(defn form-row [id label input]
+  (dom/div #js {:className "form-group"}
+           (dom/label #js {:htmlFor id} label)
+           input))
+
 (defn form-input [& {:keys [id label input-type placeholder on-change value
                             readonly]}]
-    (dom/div #js {:className "form-group"}
-             (dom/label #js {:htmlFor id} label)
-             (dom/input #js {:type input-type :className "form-control"
-                             :id id :placeholder placeholder :value value
-                             :readOnly readonly
-                             :onChange (when-not readonly
-                                         (on-change-cb on-change))})))
+  (form-row id label
+            (dom/input #js {:type input-type :className "form-control"
+                            :id id :placeholder placeholder :value value
+                            :readOnly readonly
+                            :onChange (when-not readonly
+                                        (on-change-cb on-change))})))
 
 (defn form-check [& {:keys [label value on-change]}]
   (dom/div #js {:className "checkbox"}
            (dom/label nil (dom/input #js {:type "checkbox"
                                           :checked value
-                                          :onChange (on-toggle-cb on-change)}
-                                     label))))
+                                          :onChange (on-toggle-cb on-change)})
+                                     label)))
 
 (defn button [& {:keys [type label level on-click]}]
   (dom/button #js {:type (or type "button")
@@ -108,6 +112,29 @@
              i (dec idx)
              data (nth values i)]
          (on-change {:i i :idx idx :data data})))))
+
+(defn radio-item [id selected on-change idx {:keys [value label]}]
+  (let [item-key (str id "-" idx)]
+    (dom/div #js {:className "radio"}
+             (dom/label nil
+                        (dom/input #js {:type "radio" :name id :value value
+                                        :id item-key
+                                        :key item-key
+                                        :onChange (on-change-cb on-change)
+                                        :checked (= value selected)})
+                        label))))
+
+(defn form-radio [& {:keys [id value values on-change]}]
+  (apply dom/div nil (map-indexed #(radio-item id value on-change %1 %2) values)))
+
+(defn select-item [id selected idx {:keys [value label]}]
+  (let [id (str id "-" idx)]
+    (dom/option #js {:value value :id id} label)))
+
+(defn form-select [& {:keys [id value values on-change]}]
+  (apply dom/select #js {:className "form-control" :value value
+                         :onChange (on-change-cb on-change)}
+         (map-indexed #(select-item id value %1 %2) values)))
 
 (defn slider [& {:keys [id value min max values values-id on-change]}]
   (let [values-id (or values-id (str id "-values"))]
