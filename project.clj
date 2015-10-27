@@ -10,7 +10,7 @@
                  ;[sablono "0.3.4"]
                  ;[com.rpl/specter "0.8.0"]
                  [cljs-http "0.1.37"]
-                 [org.omcljs/om "0.9.0-SNAPSHOT"]
+                 [org.omcljs/om "1.0.0-alpha10-SNAPSHOT"]
                  ;[datascript "0.13.1"]
                  ]
 
