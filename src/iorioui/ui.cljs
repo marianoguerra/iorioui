@@ -324,12 +324,12 @@
   (api/load-groups (get-token))
   (st/mutate! `[(ui.user.edit/reset) :ui]))
 
-(defn on-event-mutate [event-type value changes]
-  (let [event-symbol (symbol (namespace event-type) (name event-type))]
-    (st/mutate! `[(~event-symbol {:value ~value}) ~changes])))
+(defn on-event-mutate [event value changes]
+    (st/mutate! `[(~event {:value ~value}) ~changes]))
 
 (defn to-mutate [event-type changes]
-  (bus/subscribe event-type #(on-event-mutate %1 %2 changes)))
+  (let [event-symbol (symbol (namespace event-type) (name event-type))]
+    (bus/subscribe event-type #(on-event-mutate event-symbol %2 changes))))
 
 (defn on-grant-create [_ {:keys [role role-type permission]}]
   (let [grant {:role (str role-type "/" role) :permission permission}]
