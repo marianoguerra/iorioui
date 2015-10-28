@@ -22,8 +22,9 @@
     (bus/dispatch :new-groups groups-list)))
 
 (defn on-permissions-response [{:keys [body]}]
-  (let [perms-str (into {} (map (fn [[k v]] [(name k) v]) body))]
-    (bus/dispatch :new-permissions perms-str)))
+  (let [{:keys [permissions grants]} body
+        perms-str (into {} (map (fn [[k v]] [(name k) v]) permissions))]
+    (bus/dispatch :new-permissions {:permissions perms-str :grants grants})))
 
 (defn on-action-error [action name]
   (fn  [{:keys [status body]}]

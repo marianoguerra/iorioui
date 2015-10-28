@@ -3,7 +3,8 @@
 
 (def clean-edit-user {:username "" :password "" :groups #{"g-authenticated"}})
 (def clean-edit-group {:groupname "" :groups #{}})
-(def clean-edit-grant {:role "" :role-type "group" :permission nil})
+(def clean-edit-grant {:role "" :role-type "group" :bucket "" :key ""
+                       :permission nil})
 
 (def config (js->clj (or (.. js/window -_ioriouicfg) #js {})))
 (def api-base (or (get config "apibase") "/admin"))
@@ -82,7 +83,7 @@
         edit-grant (:edit-grant ui)]
     {:value
      {:edit-grant edit-grant
-      :permissions-list permissions-list}}))
+      :permissions-list (:permissions permissions-list)}}))
 
 (defmethod read :nav-info [{:keys [state]} _ _]
   (let [{:keys [nav-items nav-selected title loading brand-title]} (:ui @state)]
@@ -130,6 +131,10 @@
 
 (defmethod mutate 'ui.grant.edit.set/role [env _ args]
   (mutate-set :edit-grant [:ui :edit-grant :role] env args))
+(defmethod mutate 'ui.grant.edit.set/bucket [env _ args]
+  (mutate-set :edit-grant [:ui :edit-grant :bucket] env args))
+(defmethod mutate 'ui.grant.edit.set/key [env _ args]
+  (mutate-set :edit-grant [:ui :edit-grant :key] env args))
 (defmethod mutate 'ui.grant.edit.set/role-type [env _ args]
   (mutate-set :edit-grant [:ui :edit-grant :role-type] env args))
 (defmethod mutate 'ui.grant.edit.set/permission [env _ args]

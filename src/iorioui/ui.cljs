@@ -25,11 +25,11 @@
        items))
 
 (defn user-link [name]
-  (dom/a #js {:href "#" :onClick #(bus/dispatch :user-selected {:name name})}
+  (dom/a #js {:href "#" :onClick #(bus/dispatch :ui.role.user/selected {:name name})}
          name))
 
 (defn group-link [name]
-  (dom/a #js {:href "#" :onClick #(bus/dispatch :group-selected {:name name})}
+  (dom/a #js {:href "#" :onClick #(bus/dispatch :ui.role.group/selected {:name name})}
          name))
 
 (defn perm-link [app name]
@@ -81,14 +81,49 @@
 
 (def edit-user-ui (om/factory EditUser))
 
-(defn grants-details [grants-list]
+(defn revoke-link [grant role-type role]
+  (dom/a #js {:href "#"  :className "btn btn-danger btn-sm" :role "button"
+              :onClick #(bus/dispatch :ui.grant.edit/revoke
+                                      {:grant grant :role-type role-type
+                                       :role role})}
+         "Revoke"))
+
+(defn grant-role-link [role-type role]
+  (let [[event label] (condp = role-type
+                        "group" [:ui.role.group/selected role]
+                        "user" [:ui.role.user/selected role]
+                        "global" [:ui.role.global/selected "all"])
+        args {:name role}
+        d bus/dispatch]
+    (dom/a #js {:href "#" :onClick #(bus/dispatch event args)} label)))
+
+(defn grant-table [grants-list role-type role can-revoke?]
+  (bs/table ["Role" "Bucket" "Key" "Grants" ""]
+            (map (fn [{:keys [grants bucket key bucket_grant any
+                              role] :as grant}]
+                   {:key (str bucket "." key)
+                    ; don't destructure role_type in keys since it clashes
+                    ; with role-type variable
+                    ; (dash seems to compile to underscore)
+                    :cols [(grant-role-link (:role_type grant) role) bucket key
+                           (clojure.string/join ", " grants)
+                           (if can-revoke?
+                             (revoke-link grant role-type role)
+                             "")]})
+                 grants-list)))
+
+(defn grant-section [title grants-list role-type role can-revoke?]
   (dom/div #js {:className "grants-details"}
-           (bs/table ["Bucket" "Key" "Grants" "Bucket Grant" "Any Grant"]
-           (map (fn [{:keys [grants bucket key bucket_grant any]}]
-                  {:key (str bucket "." key)
-                   :cols [bucket key (clojure.string/join ", " grants)
-                                    (str bucket_grant) (str any)]})
-                grants-list))))
+           (dom/h2 nil title)
+           (if (empty? grants-list)
+             (dom/p nil (str "No " title))
+             (grant-table grants-list role-type role can-revoke?))))
+
+(defn grants-details [{:keys [direct groups global]} role-type role]
+  (dv
+    (grant-section "Direct Grants" direct role-type role true)
+    (grant-section "Groups Grants" groups role-type role false)
+    (grant-section "Global Grants" global role-type role false)))
 
 (defn user-ui [{:keys [username groups grants] :as user-details} edit-user groups-list]
   (dom/div #js {:className "user-details"}
@@ -98,7 +133,7 @@
 
            (action-button "Delete User" :delete-user user-details :danger)
            (dom/h3 nil "Grants")
-           (grants-details grants)
+           (grants-details grants :user user-details)
 
            (edit-user-ui {:edit-user edit-user
                           :opts {:title "Edit User"
@@ -138,7 +173,7 @@
 
 (def edit-group-ui (om/factory EditGroup))
 
-(defn group-ui [{:keys [name groups direct_grants] :as group-details}
+(defn group-ui [{:keys [name groups grants] :as group-details}
                 edit-group groups-list]
   (dom/div #js {:className "group-details"}
            (bs/table ["" ""]
@@ -147,10 +182,7 @@
 
            (action-button "Delete Group" :delete-group group-details :danger)
 
-           (if (empty? direct_grants)
-             (dom/h3 nil "No Direct Grants")
-             (dv (dom/h3 nil "Direct Grants")
-                 (grants-details direct_grants)))
+           (grants-details grants :group group-details)
 
            (edit-group-ui {:edit-group edit-group
                            :opts {:title "Edit Group"
@@ -179,7 +211,7 @@
                                           :action-label "Create"
                                           :action-type :create-user}))))
 
-(defn edit-grant-form [{:keys [role role-type permission] :as grant}
+(defn edit-grant-form [{:keys [role role-type permission bucket key] :as grant}
                       permissions opts]
   (dv (dom/h2 nil "Add Grant")
       (bs/form
@@ -188,10 +220,19 @@
                                     :on-change #(bus/dispatch
                                                   :ui.grant.edit.set/role-type %)
                                     :values [{:label "User" :value "user"}
-                                             {:label "Group" :value "group"}]))
+                                             {:label "Group" :value "group"}
+                                             {:label "Global" :value "global"}]))
 
-        (bs/form-input :id "add-grant-role" :label "Role" :value  role
+        (bs/form-input :id "add-grant-role" :label "Role"
+                       :value (if (= role-type "global") "*" role)
+                       :readonly (= role-type "global")
                        :on-change #(bus/dispatch :ui.grant.edit.set/role %))
+
+        (bs/form-input :id "add-grant-bucket" :label "Bucket" :value bucket
+                       :on-change #(bus/dispatch :ui.grant.edit.set/bucket %))
+
+        (bs/form-input :id "add-grant-key" :label "Key" :value key
+                       :on-change #(bus/dispatch :ui.grant.edit.set/key %))
 
         (bs/form-row "add-grant-permission" "Permission"
                      (bs/form-select :id "add-grant-permission"
@@ -225,25 +266,28 @@
 
 (def edit-grant-ui (om/factory EditGrant))
 
-(defn groups-ui [items group-data edit-grant]
+(defn groups-ui [items group-data]
   (dv
     (bs/table ["Group" "Groups"]
               (map (fn [{:keys [name groups]}]
                      {:key name
                       :cols [(group-link name) (group-links groups)]}) items))
 
-    (edit-grant-ui edit-grant) 
-
     (edit-group-ui (assoc group-data :opts {:title "Create Group"
                                             :action-label "Create"
                                             :action-type :create-group}))))
 
-(defn perms-ui [items]
-  (bs/table ["App", "Permissions"]
-            (map (fn [[name perms]]
-                   {:key name
-                    :cols [name (perm-links name perms)]})
-                 items)))
+(defn perms-ui [{:keys [permissions grants]} edit-grant]
+  (dv
+    (grant-section "Global Grants" (:global grants) :global "all" true)
+    (edit-grant-ui edit-grant)
+
+    (dom/h2 nil "Available Permissions")
+    (bs/table ["App", "Permissions"]
+              (map (fn [[k perms]]
+                     {:key k
+                      :cols [k (perm-links name perms)]})
+                   permissions))))
 
 (defn main-panel [nav-selected {:keys [users-list edit-user
                                        groups-list edit-group
@@ -256,9 +300,9 @@
   (dv (condp = nav-selected
         :users (users-ui users-list edit-user)
         :user (user-details edit-user)
-        :groups (groups-ui groups-list edit-group edit-grant)
+        :groups (groups-ui groups-list edit-group)
         :group (group-details edit-group)
-        :permissions (perms-ui permissions-list)
+        :permissions (perms-ui permissions-list edit-grant)
         (.warn js/console "invalid nav " (str nav-selected)))))
 
 (defn loading-sign []
@@ -331,9 +375,23 @@
   (let [event-symbol (symbol (namespace event-type) (name event-type))]
     (bus/subscribe event-type #(on-event-mutate event-symbol %2 changes))))
 
-(defn on-grant-create [_ {:keys [role role-type permission]}]
-  (let [grant {:role (str role-type "/" role) :permission permission}]
+(defn on-grant-create [_ {:keys [role role-type bucket key permission]}]
+  (let [full-role (if (= role-type "global") "*" (str role-type "/" role))
+        grant {:role full-role :permission permission
+               :bucket bucket :key key}]
     (api/grant (get-token) grant)))
+
+(defn on-revoke [_ {:keys [grant role-type role]}]
+  (let [prefix (name role-type)
+        role-name (condp = role-type
+                    :user (str prefix "/" (:username role))
+                    :group (str prefix "/" (:groupname role))
+                    :global "*")
+        {:keys [bucket key]} grant
+        permission (-> grant :grants first)]
+
+    (api/revoke (get-token) {:role role-name :permission permission
+                             :bucket bucket :key key})))
 
 (defn subscribe-all []
   (bus/unsubscribe-all)
@@ -346,13 +404,17 @@
                               (update-view id)
                               (navigate id title)))
 
-  (bus/subscribe :user-selected (fn [_ {:keys [name]}]
-                                  (update-view :user name)
-                                  (navigate :user (str "User " name))))
+  (bus/subscribe :ui.role.user/selected (fn [_ {:keys [name]}]
+                                          (update-view :user name)
+                                          (navigate :user (str "User " name))))
 
-  (bus/subscribe :group-selected (fn [_ {:keys [name]}]
-                                   (update-view :group name)
-                                   (navigate :group (str "Group " name))))
+  (bus/subscribe :ui.role.group/selected (fn [_ {:keys [name]}]
+                                           (update-view :group name)
+                                           (navigate :group (str "Group " name))))
+  (bus/subscribe :ui.role.global/selected (fn [_ {:keys [name]}]
+                                            (update-view :permissions)
+                                            (navigate :permissions "Permissions")))
+
   (bus/subscribe :reload-groups (fn [_ _] (api/load-groups (get-token))))
   (bus/subscribe :reload-users (fn [_ _] (api/load-users (get-token))))
   (bus/subscribe :reload-permissions (fn [_ _] (api/load-permissions (get-token))))
@@ -404,8 +466,11 @@
 
   (to-mutate :ui.grant.edit.set/role-type :ui)
   (to-mutate :ui.grant.edit.set/role :ui)
+  (to-mutate :ui.grant.edit.set/bucket :ui)
+  (to-mutate :ui.grant.edit.set/key :ui)
   (to-mutate :ui.grant.edit.set/permission :ui)
   (bus/subscribe :ui.grant.edit/create on-grant-create)
+  (bus/subscribe :ui.grant.edit/revoke on-revoke)
 
 
   (bus/subscribe :edit-group-set-group
