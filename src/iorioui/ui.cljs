@@ -342,9 +342,10 @@
                            (main-panel nav-selected data))))))))
 
 
-(defn navigate [id title]
+(defn navigate [id nav-param title]
   (st/mutate!
-    `[(ui/navigate {:nav-selected ~id :title ~title :loading true}) :ui]))
+    `[(ui/navigate {:nav-selected ~id :nav-param ~nav-param :title ~title
+                    :loading true}) :ui]))
 
 (defn get-token []
   ; TODO
@@ -358,7 +359,11 @@
       :permissions (api/load-permissions token)
       :user (api/load-user token param1)
       :group (api/load-group token param1)
-      (.warn js/console "invalid view" (name view)))))
+      (.warn js/console "invalid view" view))))
+
+(defn refresh-current-view []
+  (let [{:keys [nav-selected nav-param title]} (st/get-ui-state)]
+    (update-view nav-selected nav-param)))
 
 (defn on-user-changed []
   (api/load-users (get-token))
@@ -384,8 +389,8 @@
 (defn on-revoke [_ {:keys [grant role-type role]}]
   (let [prefix (name role-type)
         role-name (condp = role-type
-                    :user (str prefix "/" (:username role))
-                    :group (str prefix "/" (:groupname role))
+                    :user (str prefix "/" role)
+                    :group (str prefix "/" role)
                     :global "*")
         {:keys [bucket key]} grant
         permission (-> grant :grants first)]
@@ -402,18 +407,18 @@
 
   (bus/subscribe :nav-click (fn [event {:keys [id title]}]
                               (update-view id)
-                              (navigate id title)))
+                              (navigate id nil title)))
 
   (bus/subscribe :ui.role.user/selected (fn [_ {:keys [name]}]
                                           (update-view :user name)
-                                          (navigate :user (str "User " name))))
+                                          (navigate :user name (str "User " name))))
 
   (bus/subscribe :ui.role.group/selected (fn [_ {:keys [name]}]
                                            (update-view :group name)
-                                           (navigate :group (str "Group " name))))
+                                           (navigate :group name (str "Group " name))))
   (bus/subscribe :ui.role.global/selected (fn [_ {:keys [name]}]
                                             (update-view :permissions)
-                                            (navigate :permissions "Permissions")))
+                                            (navigate :permissions nil "Permissions")))
 
   (bus/subscribe :reload-groups (fn [_ _] (api/load-groups (get-token))))
   (bus/subscribe :reload-users (fn [_ _] (api/load-users (get-token))))
@@ -426,10 +431,10 @@
   (bus/subscribe :delete-user (fn [_ user] (api/delete-user (get-token) user)))
   (bus/subscribe :user-updated (fn [_ _]
                                  (on-user-changed)
-                                 (navigate :users "Users")))
+                                 (navigate :users nil "Users")))
   (bus/subscribe :user-deleted (fn [_ _]
                                  (on-user-changed)
-                                 (navigate :users "Users")))
+                                 (navigate :users nil "Users")))
 
   (bus/subscribe :create-group (fn [_ group]
                                 (api/create-group (get-token) group)))
@@ -437,16 +442,19 @@
                                  (api/delete-group (get-token) group)))
   (bus/subscribe :group-updated (fn [_ _]
                                   (on-group-changed)
-                                  (navigate :groups "Groups")))
+                                  (navigate :groups nil "Groups")))
   (bus/subscribe :group-deleted (fn [_ _]
                                   (on-group-changed)
-                                  (navigate :groups "Groups")))
+                                  (navigate :groups nil "Groups")))
 
   (bus/subscribe :group-created (fn [_ group]
                                  (api/load-groups (get-token))
                                  (st/mutate! `[(ui.group.edit/reset) :ui])))
   (bus/subscribe :update-group (fn [_ group]
                                  (api/update-group (get-token) group)))
+
+  (bus/subscribe :grant-granted (fn [_ _] (refresh-current-view)))
+  (bus/subscribe :grant-revoked (fn [_ _] (refresh-current-view)))
 
   (bus/subscribe :api-loading-change
                  #(st/mutate! `[(ui/set-loading {:value ~%2}) :ui]))

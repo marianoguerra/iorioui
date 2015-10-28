@@ -124,6 +124,14 @@
                                          (dispatch-response :user-created)
                                          (on-create-error "user")))
 
+  (bus/subscribe :grant-response (with-status 200
+                                   (dispatch-response :grant-granted)
+                                   (on-create-error "grant")))
+
+  (bus/subscribe :revoke-response (with-status 200
+                                   (dispatch-response :grant-revoked)
+                                   (on-create-error "revoke")))
+
   (bus/subscribe :user-update-response (with-status 200
                                          (dispatch-response :user-updated)
                                          (on-update-error "user")))

@@ -38,6 +38,9 @@
 (defn disj-in [state k v]
   (swap! state #(update-in % k (fn [old] (disj old v)))))
 
+(defn get-ui-state []
+  (:ui @app-state))
+
 (defn read-in [state k]
   (let [st @state]
     (if-let [value (get-in st k)]
@@ -158,10 +161,11 @@
   (mutate-set :permissions-list [:permissions-list] env args))
 
 (defmethod mutate 'ui/navigate
-  [{:keys [state]} _ {:keys [nav-selected title loading]}]
+  [{:keys [state]} _ {:keys [nav-selected nav-param title loading]}]
   {:value [:nav-info]
    :action #(swap! state (fn [old] (update-in old [:ui] assoc
                                               :nav-selected nav-selected
+                                              :nav-param nav-param
                                               :title title
                                               :loading loading)))})
 
