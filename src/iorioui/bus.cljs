@@ -24,7 +24,7 @@
             (try
               (apply handler event args)
               (catch js/Error error
-                (prn "Error calling handler" handler error))))
+                (.error js/console "Error calling handler" handler error))))
           (recur)))))
 
 (defn stop-dispatch-handler []
