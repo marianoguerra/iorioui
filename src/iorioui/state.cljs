@@ -5,6 +5,7 @@
 (def clean-edit-group {:groupname "" :groups #{}})
 (def clean-edit-grant {:role "" :role-type "group" :bucket "" :key ""
                        :permission nil})
+(def clean-edit-login {:username "" :password "" :waiting false})
 
 (def config (js->clj (or (.. js/window -_ioriouicfg) #js {})))
 (def api-base (or (get config "apibase") "/admin"))
@@ -18,9 +19,11 @@
           :edit-user clean-edit-user
           :edit-group clean-edit-group
           :edit-grant clean-edit-grant
+          :edit-login clean-edit-login
           :nav-items [{:id :users :content "Users"}
                       {:id :groups :content "Groups"}
                       {:id :permissions :content "Permissions"}]}
+     :session {:token nil}
      :user-details nil
      :users-list nil
      :groups-list nil
@@ -40,6 +43,9 @@
 
 (defn get-ui-state []
   (:ui @app-state))
+
+(defn get-token []
+  (get-in @app-state [:session :token]))
 
 (defn read-in [state k]
   (let [st @state]
@@ -88,6 +94,11 @@
      {:edit-grant edit-grant
       :permissions-list (:permissions permissions-list)}}))
 
+(defmethod read :edit-login [{:keys [state]} _ _]
+  (let [{:keys [ui]} @state
+        edit-login (:edit-login ui)]
+    {:value {:edit-login edit-login}}))
+
 (defmethod read :nav-info [{:keys [state]} _ _]
   (let [{:keys [nav-items nav-selected title loading brand-title]} (:ui @state)]
     {:value {:nav-items nav-items :nav-selected nav-selected
@@ -105,6 +116,8 @@
 
 (defmethod mutate 'ui/set-loading [env _ args]
   (mutate-set :ui [:ui :loading] env args))
+(defmethod mutate 'session/set [env _ args]
+  (mutate-set :session [:session] env args))
 
 (defmethod mutate 'ui.user.edit/set-username [env _ args]
   (mutate-set :edit-user [:ui :edit-user :username] env args))
@@ -142,6 +155,13 @@
   (mutate-set :edit-grant [:ui :edit-grant :role-type] env args))
 (defmethod mutate 'ui.grant.edit.set/permission [env _ args]
   (mutate-set :edit-grant [:ui :edit-grant :permission] env args))
+
+(defmethod mutate 'ui.login.edit.set/username [env _ args]
+  (mutate-set :edit-login [:ui :edit-login :username] env args))
+(defmethod mutate 'ui.login.edit.set/password [env _ args]
+  (mutate-set :edit-login [:ui :edit-login :password] env args))
+(defmethod mutate 'ui.login.edit.set/waiting [env _ args]
+  (mutate-set :edit-login [:ui :edit-login :waiting] env args))
 
 (defmethod mutate 'ui.users/set-user-details [env _ args]
   (mutate-set :user-details [:user-details] env args))

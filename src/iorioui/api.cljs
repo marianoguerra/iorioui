@@ -82,6 +82,9 @@
     (dissoc user :password)
     user))
 
+(defn login [credentials]
+  (bus/dispatch-req :login-response (http-post [:sessions] "" credentials)))
+
 (defn create-user [token user]
   (bus/dispatch-req :user-create-response (http-post [:users] token user)))
 
@@ -114,6 +117,10 @@
   (fn [response] (bus/dispatch event-type {:response response})))
 
 (defn subscribe-all []
+  (bus/subscribe :login-response (with-status 200
+                                   (dispatch-response :login-succeeded)
+                                   (dispatch-response :login-failed)))
+
   (bus/subscribe :users-response (with-status 200 on-users-response
                                    (on-loading-error "users")))
 

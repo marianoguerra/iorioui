@@ -309,6 +309,39 @@
   (dom/p #js {:className "bg-success"
               :style #js {:padding "1em" :textAlign "center"}} "Loading"))
 
+(defn authenticated-ui [{:keys [nav-info] :as data}]
+  (let [{:keys [nav-items nav-selected title loading brand-title]} nav-info]
+    (bs/row
+      (bs/navbar brand-title)
+      (bs/sidebar (nav-mark-selected nav-items nav-selected))
+      (bs/page title
+               (if loading
+                 (loading-sign)
+                 (main-panel nav-selected data))))))
+
+(defn login-form [{:keys [username password waiting] :as login-details}]
+  (bs/row
+    (bs/page "Login"
+    (bs/form
+      (bs/form-input :id "login-username" :label "Username" :value username
+                     :readonly waiting
+                     :on-change #(bus/dispatch :ui.login.edit.set/username %))
+      (bs/form-input :id "login-password" :label "Password"
+                     :readonly waiting
+                     :input-type "password" :value password
+                     :on-change #(bus/dispatch :ui.login.edit.set/password %))
+      (when-not waiting
+        (action-button "Login" :ui.login.edit/login login-details :primary))))))
+
+(defui LoginUI
+  static om/IQuery
+  (query [this] '[(:edit-login)])
+  Object
+  (render [this]
+          (login-form (:edit-login (om/props this)))))
+
+(def login-ui (om/factory LoginUI))
+
 (defui App
   static om/IQuery
   (query [this]
@@ -316,30 +349,28 @@
                [edit-group-query] (om/get-query EditGroup)
                [user-details-query] (om/get-query UserDetails)
                [group-details-query] (om/get-query GroupDetails)
-               [edit-grant-query] (om/get-query EditGrant)]
+               [edit-grant-query] (om/get-query EditGrant)
+               [edit-login] (om/get-query LoginUI)]
            `[:ui
              ~edit-user-query
              ~edit-group-query
              ~user-details-query
              ~group-details-query
              ~edit-grant-query
+             ~edit-login
+             (:session)
              (:nav-info)
              (:users-list)
              (:groups-list)
              (:permissions-list)]))
   Object
   (render [this]
-          (let [{:keys [ui nav-info] :as data} (om/props this)
-                {:keys [nav-items nav-selected title loading brand-title]}
-                nav-info]
+          (let [{:keys [session nav-info edit-login] :as data} (om/props this)
+                {:keys [token]} session]
             (bs/container-fluid
-              (bs/row
-                (bs/navbar brand-title)
-                (bs/sidebar (nav-mark-selected nav-items nav-selected))
-                (bs/page title
-                         (if loading
-                           (loading-sign)
-                           (main-panel nav-selected data))))))))
+              (if token
+                (authenticated-ui data)
+                (login-ui edit-login))))))
 
 
 (defn navigate [id nav-param title]
@@ -348,8 +379,7 @@
                     :loading true}) :ui]))
 
 (defn get-token []
-  ; TODO
-  "atoken")
+  (st/get-token))
 
 (defn update-view [view & [param1]]
   (let [token (get-token)]
@@ -398,12 +428,35 @@
     (api/revoke (get-token) {:role role-name :permission permission
                              :bucket bucket :key key})))
 
+(defn set-login-waiting [value]
+  (st/mutate! `[(ui.login.edit.set/waiting {:value ~value}) :ui :session]))
+
+(defn on-login [_ {:keys [username password]}]
+  (set-login-waiting true)
+  (api/login {:username username :password password}))
+
+(defn on-login-succeeded [_ {:keys [response]}]
+  (set-login-waiting false)
+  (let [{:keys [body]} response]
+    (st/mutate! `[(session/set {:value ~body}) :ui :session])))
+
+(defn error-dialog [msg]
+  (.alert js/window msg))
+
+(defn on-login-failed [_ {:keys [response]}]
+  (error-dialog "Login Failed")
+  (set-login-waiting false)
+  (st/mutate! `[(ui.login.edit.set/password {:value ""}) :ui :session]))
+
 (defn subscribe-all []
   (bus/unsubscribe-all)
   (bus/stop-dispatch-handler)
 
   (bus/start-dispatch-handler)
   (api/subscribe-all)
+
+  (bus/subscribe :login-succeeded on-login-succeeded)
+  (bus/subscribe :login-failed on-login-failed)
 
   (bus/subscribe :nav-click (fn [event {:keys [id title]}]
                               (update-view id)
@@ -480,6 +533,9 @@
   (bus/subscribe :ui.grant.edit/create on-grant-create)
   (bus/subscribe :ui.grant.edit/revoke on-revoke)
 
+  (to-mutate :ui.login.edit.set/username :ui)
+  (to-mutate :ui.login.edit.set/password :ui)
+  (bus/subscribe :ui.login.edit/login on-login)
 
   (bus/subscribe :edit-group-set-group
                  #(st/mutate! `[(ui.group.edit/set-group ~%2) :ui])) ; TODO
