@@ -1,7 +1,7 @@
 (ns iorioui.state
   (:require [om.next :as om]))
 
-(def clean-edit-user {:username "" :password "" :groups #{"g-authenticated"}})
+(def clean-edit-user {:username "" :password "" :groups #{}})
 (def clean-edit-group {:groupname "" :groups #{}})
 (def clean-edit-grant {:role "" :role-type "group" :bucket "" :key ""
                        :permission nil})
