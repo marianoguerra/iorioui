@@ -44,6 +44,6 @@
                         :compiler {:main       "iorioui.ui"
                                    :asset-path "js/compiled/out"
                                    :output-to  "resources/public/js/compiled/iorioui.js"
-                                   :optimizations :advanced}}]}
+                                   :optimizations :simple}}]}
 
   :figwheel { :css-dirs ["resources/public/css"] })
