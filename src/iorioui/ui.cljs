@@ -286,7 +286,7 @@
     (bs/table ["App", "Permissions"]
               (map (fn [[k perms]]
                      {:key k
-                      :cols [k (perm-links name perms)]})
+                      :cols [k (perm-links name (sort perms))]})
                    permissions))))
 
 (defn main-panel [nav-selected {:keys [users-list edit-user
