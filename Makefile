@@ -1,5 +1,6 @@
+.PHONY: compile release build clean update install-om
 
-build: install-om compile release
+build: compile release
 
 om:
 	git clone https://github.com/omcljs/om.git
@@ -11,7 +12,8 @@ install-om: om
 	cd om && git checkout 71ee08e2b0d8be9d90d3d4eee81781112cc947ac
 	cd om && lein install
 
-compile:
+compile: install-om 
+	lein clean
 	lein cljsbuild once prod
 
 release:
