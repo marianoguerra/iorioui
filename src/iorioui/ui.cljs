@@ -110,7 +110,7 @@
                            (if can-revoke?
                              (revoke-link grant role-type role)
                              "")]})
-                 grants-list)))
+                 (sort-by (juxt :role :bucket :key) grants-list))))
 
 (defn grant-section [title grants-list role-type role can-revoke?]
   (dom/div #js {:className "grants-details"}
