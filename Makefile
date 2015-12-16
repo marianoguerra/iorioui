@@ -21,3 +21,7 @@ release:
 	cp resources/public/js/compiled/iorioui.js release/js/compiled/
 	cp resources/public/index.html release/
 
+clean:
+	rm -rf release
+	lein clean
+	rm *-init.clj
