@@ -132,7 +132,7 @@
 
 (defmethod mutate 'ui.user.edit/set-group
   [{:keys [state]} _ {:keys [name value]}]
-  {:value [:edit-user]
+  {:value {:keys [:edit-user]}
    :action #(set-group state [:ui :edit-user :groups] name value)})
 
 (defmethod mutate 'ui.group.edit/set-groupname [env _ args]
@@ -144,7 +144,7 @@
 
 (defmethod mutate 'ui.group.edit/set-group
   [{:keys [state]} _ {:keys [name value]}]
-  {:value [:edit-group]
+  {:value {:keys [:edit-group]}
    :action #(set-group state [:ui :edit-group :groups] name value)})
 
 (defmethod mutate 'ui.grant.edit.set/role [env _ args]
@@ -169,14 +169,14 @@
   (mutate-set :user-details [:user-details] env args))
 
 (defmethod mutate 'ui.users/set-users [{:keys [state]} _ {:keys [value]}]
-  {:value [:users-list]
+  {:value {:keys [:users-list]}
    :action #(set-key state :users-list (sort-name-and-groups value))})
 
 (defmethod mutate 'ui.groups/set-group-details [env _ args]
   (mutate-set :group-details [:group-details] env args))
 
 (defmethod mutate 'ui.groups/set-groups [{:keys [state]} _ {:keys [value]}]
-  {:value [:groups-list]
+  {:value {:keys [:groups-list]}
    :action #(set-key state :groups-list (sort-name-and-groups value))})
 
 (defmethod mutate 'ui.perms/set-perms [env _ args]
@@ -184,7 +184,7 @@
 
 (defmethod mutate 'ui/navigate
   [{:keys [state]} _ {:keys [nav-selected nav-param title loading]}]
-  {:value [:nav-info]
+  {:value {:keys [:nav-info]}
    :action #(swap! state (fn [old] (update-in old [:ui] assoc
                                               :nav-selected nav-selected
                                               :nav-param nav-param
