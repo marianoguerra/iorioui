@@ -110,7 +110,7 @@
     (disj-in state path name)))
 
 (defn mutate-set [changes path {:keys [state]} {:keys [value]}]
-  {:value [changes] :action #(set-in state path value)})
+  {:value {:keys [changes]} :action #(set-in state path value)})
 
 (defmulti mutate om/dispatch)
 
