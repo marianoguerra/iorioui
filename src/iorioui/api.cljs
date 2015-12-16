@@ -1,5 +1,6 @@
 (ns iorioui.api
   (:require
+    iorioui.state
     [iorioui.bus :as bus]
     [cljs-http.client :as http]))
 
@@ -44,7 +45,8 @@
       (when other-status (other-status response)))))
 
 (defn api-path [parts]
-  (clojure.string/join "/" (concat [iorioui.state/api-base] (map name parts))))
+  (let [api-base (iorioui.state/get-api-base)]
+    (clojure.string/join "/" (concat [api-base] (map name parts)))))
 
 (defn http-get [path-parts token]
   (http/get (api-path path-parts)

@@ -39,12 +39,14 @@
                                    :asset-path "js/compiled/out"
                                    :output-to  "resources/public/js/compiled/iorioui.js"
                                    :output-dir "resources/public/js/compiled/out"
+                                   :externs ["resources/externs.js"]
                                    :source-map-timestamp true }}
                        {:id "prod"
                         :source-paths ["src"]
                         :compiler {:main       "iorioui.ui"
                                    :asset-path "js/compiled/out"
                                    :output-to  "resources/public/js/compiled/iorioui.js"
+                                   :externs ["externs.js"]
                                    :optimizations :advanced}}]}
 
   :figwheel { :css-dirs ["resources/public/css"] })

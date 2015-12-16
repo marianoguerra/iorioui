@@ -7,8 +7,10 @@
                        :permission nil})
 (def clean-edit-login {:username "" :password "" :waiting false})
 
-(def config (js->clj (or (.. js/window -_ioriouicfg) #js {})))
-(def api-base (or (get config "apibase") "/admin"))
+(def config (js->clj (or (. js/window -_ioriouicfg) #js {})))
+
+(defn get-api-base []
+  (or (get config "apibase") "/admin"))
 
 (defonce app-state
   (atom
