@@ -10,7 +10,8 @@
                  ;[sablono "0.3.4"]
                  ;[com.rpl/specter "0.8.0"]
                  [cljs-http "0.1.37"]
-                 [org.omcljs/om "1.0.0-alpha12"]
+                 [org.clojure/core.async "0.2.374"]
+                 [org.omcljs/om "1.0.0-alpha29-SNAPSHOT"]
                  ;[datascript "0.13.1"]
                  ]
 
@@ -44,6 +45,6 @@
                         :compiler {:main       "iorioui.ui"
                                    :asset-path "js/compiled/out"
                                    :output-to  "resources/public/js/compiled/iorioui.js"
-                                   :optimizations :simple}}]}
+                                   :optimizations :advanced}}]}
 
   :figwheel { :css-dirs ["resources/public/css"] })
